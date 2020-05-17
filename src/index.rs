@@ -74,22 +74,25 @@ impl Entry {
         Ok(())
     }
 
-    pub fn update_hash(&mut self, root: &Path, force: bool) -> Result<()> {
+    pub fn update_hash<T, R>(&mut self, root: &Path, force: bool, update: T) -> Result<()> where
+        T: FnMut(u64) -> R {
         if force || self.hash.is_empty() {
             let path = root.join(&self.path);
-            self.hash = Entry::hash_file(&path)?;
+            self.hash = Entry::hash_file(&path, update)?;
         }
 
         Ok(())
     }
 
-    fn hash_file(file_name: &Path) -> Result<String> {
+    fn hash_file<T, R>(file_name: &Path, mut update: T) -> Result<String> where
+        T: FnMut(u64) -> R {
         let mut hasher = Sha256::new();
-        let mut file = File::open(file_name)?;
-        let mut buf = [0; 4096];
+        let mut file = File::open(file_name)?; // TODO: also get metadata here?
+        let mut buf = [0; 1024 * 1024];
 
         loop {
             let size = file.read(&mut buf)?;
+            update(size as u64);
             if size != buf.len() {
                 hasher.input(&buf[0..size]);
                 break;

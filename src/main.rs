@@ -1,5 +1,5 @@
 use std::io;
-use std::io::BufRead;
+use std::io::{BufRead, stderr};
 use std::path::Path;
 
 use clap::Clap;
@@ -9,6 +9,7 @@ use anyhow::{bail, Result, Context};
 use crate::diff::diff_iter;
 use crate::index::Entry;
 use crate::stats::Stats;
+use pbr::{ProgressBar, Units};
 
 mod index;
 mod analyze;
@@ -73,12 +74,13 @@ fn main() -> Result<()> {
         SubCommand::Audit(a) => audit(&a.directory)
     }
 
-    // TODO: https://github.com/a8m/pb
     // TODO: colored output
     // TODO: run https://github.com/rust-lang/rust-clippy
     // TODO: https://github.com/ssokolow/rust-cli-boilerplate
-    // TODO: Tests
+    // TODO: Tests, Integration
     // TODO: error handling (with_context)
+    // TODO: optimize speed
+    // TODO: make (?) file (build, build/release, lint, run, test, ..)
     // https://github.com/rust-unofficial/awesome-rust
 }
 
@@ -90,7 +92,13 @@ fn init(directory: &str) -> Result<()> {
         bail!("An index already exists in this directory!");
     }
 
-    let entries = analyze::analyze_dir(path, true)?;
+    let total = analyze::total_file_size(path)?;
+    let mut pb = ProgressBar::on(stderr(), total as u64);
+    pb.set_units(Units::Bytes);
+
+    let entries = analyze::analyze_dir(path, true, true, |c| pb.add(c))?;
+    pb.finish_print("Done.");
+
     index::save(path, &entries)
 }
 
@@ -101,7 +109,7 @@ fn update(directory: &str) -> Result<()> {
     let entries = index::load(path).
         with_context(|| format!("No index found in directory '{}'", directory))?;
 
-    let actual = analyze::analyze_dir(path, false)?;
+    let actual = analyze::analyze_dir(path, true, false, |_| {})?;
     let it = diff_iter(entries.iter(), actual.iter(), Entry::compare_meta);
 
     let stats: Stats = it.collect();
@@ -120,9 +128,13 @@ fn update(directory: &str) -> Result<()> {
 
     // TODO: check yes
 
+    let total = stats.iter_new().fold(0, |c, e| c + e.len);
+    let mut pb = ProgressBar::on(stderr(), total as u64);
+    pb.set_units(Units::Bytes);
+
     let with_hash = |entry: &Entry| {
         let mut e = entry.clone();
-        e.update_hash(path, false)?;
+        e.update_hash(path, false, |c| pb.add(c))?;
         Ok(e)
     };
 
@@ -130,6 +142,8 @@ fn update(directory: &str) -> Result<()> {
         map(with_hash).
         collect::<Result<Vec<Entry>>>()?;
     updated_entries.sort_unstable();
+    pb.finish_print("Done.");
+
     index::save(path, &updated_entries)
 }
 
@@ -139,7 +153,13 @@ fn audit(directory: &str) -> Result<()> {
     let path = Path::new(directory);
     let entries = index::load(path)?;
 
-    let actual = analyze::analyze_dir(path, true)?;
+    let total = analyze::total_file_size(path)?;
+    let mut pb = ProgressBar::on(stderr(), total as u64);
+    pb.set_units(Units::Bytes);
+
+    let actual = analyze::analyze_dir(path, true, true, |c| pb.add(c))?;
+    pb.finish_print("Done.");
+
     let it = diff_iter(entries.iter(), actual.iter(), Entry::compare_hash);
 
     let stats: Stats = it.collect();

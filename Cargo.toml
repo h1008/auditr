@@ -11,3 +11,4 @@ clap = { git = "https://github.com/clap-rs/clap/" }
 sha2 = "0.8.1"
 walkdir = "2"
 anyhow = "1.0"
+pbr = "1.0.2"
