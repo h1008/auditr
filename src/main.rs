@@ -102,6 +102,16 @@ fn init(directory: &str) -> Result<()> {
     index::save(path, &entries)
 }
 
+fn confirm(msg: &str) -> Result<bool> {
+    eprintln!("{}", msg);
+
+    let stdin = io::stdin();
+    let mut str = String::new();
+    stdin.lock().read_line(&mut str)?;
+
+    Ok(str.eq_ignore_ascii_case("y\n"))
+}
+
 fn update(directory: &str) -> Result<()> {
     eprintln!("Updating indices in directory '{}'...", directory);
 
@@ -120,13 +130,10 @@ fn update(directory: &str) -> Result<()> {
 
     show_stats(&stats);
 
-    eprintln!("Continue? [N/y]");
-
-    let stdin = io::stdin();
-    let mut str = String::new();
-    stdin.lock().read_line(&mut str)?;
-
-    // TODO: check yes
+    if !confirm("Continue? [N/y]")? {
+        eprintln!("Aborted.");
+        return Ok(());
+    }
 
     let total = stats.iter_new().fold(0, |c, e| c + e.len);
     let mut pb = ProgressBar::on(stderr(), total as u64);
@@ -176,6 +183,7 @@ fn audit(directory: &str) -> Result<()> {
 }
 
 fn show_stats(stats: &Stats) {
+    // TODO: only show new, deleted, updated if no hashes have been computed
     if stats.modified() {
         println!("Files");
         println!("New (+), deleted (-), moved (>), updated (*), updated but with same modified timestamp (!)");

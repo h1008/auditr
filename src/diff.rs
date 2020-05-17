@@ -58,7 +58,7 @@ impl<'a, I, F, T> DiffIter<'a, I, F, T> where
         Some(Event::REMOVED { old })
     }
 
-    fn same_key(&mut self, new: &'a T, old: &'a T) -> Option<Event<'a, T>> {
+    fn same_key(&mut self, old: &'a T, new: &'a T) -> Option<Event<'a, T>> {
         self.old_val = self.old_iter.next();
         self.new_val = self.new_iter.next();
 
