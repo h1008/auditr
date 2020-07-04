@@ -30,17 +30,17 @@ impl<'a> Stats<'a> {
 
     fn compute_moved(&mut self) {
         let mut removed = self.removed.iter().
-            map(|e| (e.hash.clone(), e.clone())).
+            map(|&e| (e.hash.clone(), e)).
             collect::<HashMap<String, &'a Entry>>();
 
         let mut added = Vec::new();
-        for a in &self.added {
+        for &a in &self.added {
             match removed.remove_entry(&a.hash) {
                 Some((_, val)) => {
                     self.moved.insert(val.path.clone(), a);
                 },
                 None => {
-                    added.push(a.clone());
+                    added.push(a);
                 }
             }
         }

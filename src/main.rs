@@ -2,14 +2,13 @@ use std::io;
 use std::io::{BufRead, stderr};
 use std::path::Path;
 
+use anyhow::{bail, Context, Result};
 use clap::Clap;
-
-use anyhow::{bail, Result, Context};
+use pbr::{ProgressBar, Units};
 
 use crate::diff::diff_iter;
 use crate::index::Entry;
 use crate::stats::Stats;
-use pbr::{ProgressBar, Units};
 
 mod index;
 mod analyze;
@@ -75,13 +74,10 @@ fn main() -> Result<()> {
     }
 
     // TODO: colored output
-    // TODO: run https://github.com/rust-lang/rust-clippy
     // TODO: https://github.com/ssokolow/rust-cli-boilerplate
     // TODO: Tests, Integration
     // TODO: error handling (with_context)
     // TODO: optimize speed
-    // TODO: make (?) file (build, build/release, lint, run, test, ..)
-    // https://github.com/rust-unofficial/awesome-rust
 }
 
 fn init(directory: &str) -> Result<()> {
