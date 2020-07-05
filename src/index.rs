@@ -142,7 +142,7 @@ fn read_hash_index(file_name: &Path) -> Result<Vec<Entry>> {
 
     let mut entries: Result<Vec<Entry>> = reader.lines().map(|line| {
         let line = line?;
-        let line: Vec<&str> = line.split("  ").collect();
+        let line: Vec<&str> = line.splitn(2, "  ").collect();
         Ok(Entry {
             path: PathBuf::from(line[1]),
             hash: String::from(line[0]),
@@ -164,7 +164,7 @@ fn read_meta_index(file_name: &Path) -> Result<Vec<Entry>> {
 
     let mut entries: Result<Vec<Entry>> = reader.lines().map(|line| {
         let line = line?;
-        let line: Vec<&str> = line.split("  ").collect();
+        let line: Vec<&str> = line.splitn(2, "  ").collect();
         let time_size: Vec<&str> = line[0].split('/').collect();
 
         Ok(Entry {
