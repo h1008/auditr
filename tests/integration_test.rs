@@ -3,7 +3,7 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use tempfile::tempdir;
 
 use common::*;
@@ -43,8 +43,8 @@ fn run_update(base: &Path) -> Result<Output> {
 
         if let Some(ref mut stderr) = c.stderr {
             for line in BufReader::new(stderr).lines() {
-                if &*line? == "Continue? [N/y]" {
-                    writer.write_fmt(format_args!("Y\n"));
+                if line?.contains("Continue?") {
+                    writer.write_fmt(format_args!("Y\n"))?;
                     break;
                 }
             }
@@ -54,7 +54,7 @@ fn run_update(base: &Path) -> Result<Output> {
     c.wait_with_output().map_err(anyhow::Error::new)
 }
 
-fn given_some_files(base: &Path) -> Result<()> {
+fn given_dir_without_index(base: &Path) -> Result<()> {
     given_file_with_random_contents(base, "f1.txt", 4 * 1024)?;
     given_file_with_contents(base, "a/f2a.txt", "f2")?;
     given_file_with_contents(base, "a/f2b.txt", "f2")?;
@@ -64,19 +64,34 @@ fn given_some_files(base: &Path) -> Result<()> {
     Ok(())
 }
 
+fn given_dir_with_index(base: &Path) -> Result<()> {
+    given_dir_without_index(base)?;
+    let result = run_init(base)?;
+    if status_code(&result) != 0 {
+        bail!("init failed");
+    }
+    Ok(())
+}
+
+fn given_dir_with_modified_index(base: &Path) -> Result<()> {
+    given_dir_with_index(base)?;
+
+    given_file_with_random_contents(base, "a/new.txt", 10 * 1024)?; // New file
+    replace_file_with_contents(base, "f1.txt", "new contents", false)?; // Updated file
+    replace_file_with_contents(base, "a/f2a.txt", "new contents", true)?; // File with bitrot
+    std::fs::remove_dir_all(base.join("a/b"))?; // Removed file
+    std::fs::rename(base.join("c/large.txt"), base.join("a/large_new.txt"))?; // Moved file
+
+    Ok(())
+}
+
+// TODO: test init
+
 #[test]
-fn test_init_audit() -> Result<()> {
+fn test_audit_no_changes() -> Result<()> {
     // Given
     let temp = tempdir()?;
-    given_some_files(temp.path())?;
-
-    // When
-    let result = run_init(temp.path())?;
-
-    // Then
-    assert_eq!(status_code(&result), 0);
-    assert!(stderr(&result).contains(&format!("Initializing indices in '{}'", temp.path().display())));
-    assert!(stderr(&result).contains("Done."));
+    given_dir_with_index(temp.path())?;
 
     // When
     let result = run_audit(temp.path())?;
@@ -97,27 +112,18 @@ fn test_init_audit() -> Result<()> {
 }
 
 #[test]
-fn test_init_modify_audit() -> Result<()> {
+fn test_audit_modified() -> Result<()> {
     // Given
     let temp = tempdir()?;
-    given_some_files(temp.path())?;
-
-    let result = run_init(temp.path())?;
-    assert_eq!(status_code(&result), 0);
-
-    given_file_with_random_contents(temp.path(), "a/new.txt", 10 * 1024)?; // New file
-    replace_file_with_contents(temp.path(), "f1.txt", "new contents", false)?; // Updated file
-    replace_file_with_contents(temp.path(), "a/f2a.txt", "new contents", true)?; // File with bitrot
-    std::fs::remove_dir_all(temp.path().join("a/b"))?; // Removed file
-    std::fs::rename(temp.path().join("c/large.txt"), temp.path().join("a/large_new.txt"))?; // Moved file
+    given_dir_with_modified_index(temp.path())?;
 
     // When
     let result = run_audit(temp.path())?;
 
     // Then
-    let out = stdout(&result);
-
     assert_eq!(status_code(&result), 1);
+
+    let out = stdout(&result);
     assert!(match_regex(&out, r"(?m)^New:\s+1$"));
     assert!(match_regex(&out, r"(?m)^Updated:\s+1$"));
     assert!(match_regex(&out, r"(?m)^Updated \(bitrot\):\s+1$"));
@@ -136,30 +142,18 @@ fn test_init_modify_audit() -> Result<()> {
 }
 
 #[test]
-fn test_init_modify_update_audit() -> Result<()> {
-    // TODO: given_modified_repository()
-    // TODO: given_unmodified_repo()
-
+fn test_update() -> Result<()> {
     // Given
     let temp = tempdir()?;
-    given_some_files(temp.path())?;
-
-    let result = run_init(temp.path())?;
-    assert_eq!(status_code(&result), 0);
-
-    given_file_with_random_contents(temp.path(), "a/new.txt", 10 * 1024)?; // New file
-    replace_file_with_contents(temp.path(), "f1.txt", "new contents", false)?; // Updated file
-    replace_file_with_contents(temp.path(), "a/f2a.txt", "new contents", true)?; // File with bitrot
-    std::fs::remove_dir_all(temp.path().join("a/b"))?; // Removed file
-    std::fs::rename(temp.path().join("c/large.txt"), temp.path().join("a/large_new.txt"))?; // Moved file
+    given_dir_with_modified_index(temp.path())?;
 
     // When
     let result = run_update(temp.path())?;
 
     // Then
-    let out = stdout(&result);
-
     assert_eq!(status_code(&result), 0);
+
+    let out = stdout(&result);
     assert!(match_regex(&out, r"(?m)^New:\s+2$"));
     assert!(match_regex(&out, r"(?m)^Updated:\s+1$"));
     assert!(match_regex(&out, r"(?m)^Updated \(bitrot\):\s+1$"));
@@ -176,8 +170,6 @@ fn test_init_modify_update_audit() -> Result<()> {
     assert!(out.contains("[-] c/large.txt"));
 
     let result = run_audit(temp.path())?;
-    println!("{:?}", stdout(&result));
-    println!("{:?}", stderr(&result));
     assert_eq!(status_code(&result), 0);
 
     Ok(())

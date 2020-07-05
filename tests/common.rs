@@ -63,10 +63,6 @@ pub fn stdout(out: &Output) -> String {
     String::from_utf8_lossy(&out.stdout).into_owned()
 }
 
-pub fn stderr(out: &Output) -> String {
-    String::from_utf8_lossy(&out.stderr).into_owned()
-}
-
 pub fn match_regex(str: &str, regexp: &str) -> bool {
     Regex::new(regexp).unwrap().is_match(str)
 }
