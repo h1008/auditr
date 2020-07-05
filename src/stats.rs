@@ -25,7 +25,8 @@ impl<'a> Stats<'a> {
     pub fn iter_new(&self) -> impl Iterator<Item=&'a Entry> {
         self.added.clone().into_iter().
             chain(self.unchanged.clone().into_iter()).
-            chain(self.updated.clone().into_iter())
+            chain(self.updated.clone().into_iter()).
+            chain(self.updated_bitrot.clone().into_iter())
     }
 
     fn compute_moved(&mut self) {
