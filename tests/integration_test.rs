@@ -10,7 +10,7 @@ use common::*;
 
 mod common;
 
-const BINARY_PATH: &str = "target/debug/hello-rust";
+const BINARY_PATH: &str = "target/debug/auditr";
 
 #[test]
 fn test_init() -> Result<()> {

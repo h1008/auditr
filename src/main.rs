@@ -15,18 +15,13 @@ mod analyze;
 mod diff;
 mod stats;
 
-/// This doc string acts as a help message when the user runs '--help'
-/// as do all doc strings on fields
+/// Auditr collects hashes and file system metadata of all files in a directory tree.
+/// The collected data can be used at later point in time to detect changes (like files added, removed, or updated).
 #[derive(Clap)]
 #[clap(version = "0.1", author = "h1008")]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,
-
-    // TODO: --progress
-    // TODO: --exclude
-    // TODO: --yes
-    // TODO: --verbose
 }
 
 #[derive(Clap)]
@@ -39,26 +34,26 @@ enum SubCommand {
     #[clap(name = "update")]
     Update(Update),
 
-    /// A help message for the Audit subcommand
+    /// Check for any changes compared to the directory index
     #[clap(name = "audit")]
     Audit(Audit),
 }
 
-/// A subcommand for controlling testing
+/// Creates the directory index initially
 #[derive(Clap)]
 struct Init {
     directory: String
 }
 
-/// Create or update the directory index
-/// Show new, updated, deleted files according to metadata (if verbose) or stats (else)
+/// Updates the directory index
+/// Show new, updated, deleted files according to metadata.
 /// After confirmation, compute new index and commit
 #[derive(Clap)]
 struct Update {
     directory: String
 }
 
-/// A subcommand for controlling testing
+/// Compares the directory's current state to the index and outputs the differences
 #[derive(Clap)]
 struct Audit {
     directory: String
@@ -72,13 +67,6 @@ fn main() -> Result<()> {
         SubCommand::Update(u) => update(&u.directory),
         SubCommand::Audit(a) => audit(&a.directory)
     }
-
-    // TODO: colored output?
-    // TODO: https://github.com/ssokolow/rust-cli-boilerplate
-    // TODO: Tests, Integration
-    // TODO: error handling (with_context)
-    // TODO: optimize speed
-    // TODO: README, help messages
 }
 
 fn init(directory: &str) -> Result<()> {

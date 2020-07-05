@@ -51,7 +51,7 @@ impl Entry {
     pub fn from_path(path: &Path) -> Entry {
         Entry {
             path: path.to_path_buf(),
-            hash: String::new(), // TODO: Optional?
+            hash: String::new(),
             len: 0,
             modified: 0,
         }
@@ -87,7 +87,7 @@ impl Entry {
     fn hash_file<T, R>(file_name: &Path, mut update: T) -> Result<String> where
         T: FnMut(u64) -> R {
         let mut hasher = Sha256::new();
-        let mut file = File::open(file_name)?; // TODO: also get metadata here?
+        let mut file = File::open(file_name)?;
         let mut buf = [0; 1024 * 1024];
 
         loop {

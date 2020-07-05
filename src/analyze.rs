@@ -1,8 +1,7 @@
 use std::path::Path;
 
-use walkdir::WalkDir;
-
 use anyhow::Result;
+use walkdir::WalkDir;
 
 use crate::index::{Entry, HASH_INDEX_NAME, META_INDEX_NAME};
 
@@ -13,10 +12,10 @@ pub fn analyze_dir<T, R>(dir_name: &Path, compute_meta: bool, compute_hash: bool
     let hash_idx_path = dir_name.join(Path::new(HASH_INDEX_NAME));
     let meta_idx_path = dir_name.join(Path::new(META_INDEX_NAME));
 
-    let x: [&Path; 2] = [hash_idx_path.as_path(), meta_idx_path.as_path()];
+    let excluded: [&Path; 2] = [hash_idx_path.as_path(), meta_idx_path.as_path()];
     let walk = WalkDir::new(dir_name).
         into_iter().
-        filter_entry(|e| !x.contains(&e.path()));
+        filter_entry(|e| !excluded.contains(&e.path()));
 
     for entry in walk {
         let entry = entry?;
