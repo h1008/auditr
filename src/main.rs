@@ -73,11 +73,12 @@ fn main() -> Result<()> {
         SubCommand::Audit(a) => audit(&a.directory)
     }
 
-    // TODO: colored output
+    // TODO: colored output?
     // TODO: https://github.com/ssokolow/rust-cli-boilerplate
     // TODO: Tests, Integration
     // TODO: error handling (with_context)
     // TODO: optimize speed
+    // TODO: README, help messages
 }
 
 fn init(directory: &str) -> Result<()> {
@@ -124,14 +125,16 @@ fn update(directory: &str) -> Result<()> {
         return Ok(());
     }
 
-    show_stats(&stats);
+    show_stats(&stats, false);
 
     if !confirm("Continue? [N/y]")? {
         eprintln!("Aborted.");
         return Ok(());
     }
 
-    let total = stats.iter_new().fold(0, |c, e| c + e.len);
+    let total = stats.iter_new().
+        filter(|e| e.hash.is_empty()).
+        fold(0, |c, e| c + e.len);
     let mut pb = ProgressBar::on(stderr(), total as u64);
     pb.set_units(Units::Bytes);
 
@@ -167,7 +170,7 @@ fn audit(directory: &str) -> Result<()> {
 
     let stats: Stats = it.collect();
 
-    show_stats(&stats);
+    show_stats(&stats, true);
 
     if stats.modified() {
         bail!("Audit failed - difference detected!");
@@ -178,11 +181,14 @@ fn audit(directory: &str) -> Result<()> {
     Ok(())
 }
 
-fn show_stats(stats: &Stats) {
-    // TODO: only show new, deleted, updated if no hashes have been computed
+fn show_stats(stats: &Stats, audit: bool) {
     if stats.modified() {
         println!("Files");
-        println!("New (+), deleted (-), moved (>), updated (*), updated but with same modified timestamp (!)");
+        if audit {
+            println!("New (+), deleted (-), moved (>), updated (*), updated but with same modified timestamp (!)");
+        } else {
+            println!("New (+), deleted (-), updated (*)");
+        }
         println!();
         for s in stats.added.iter() {
             println!("[+] {}", s);
@@ -205,13 +211,19 @@ fn show_stats(stats: &Stats) {
     println!("====================================");
     println!("Stats");
     println!("------------------------------------");
-    println!("New:                {:>16}", stats.added.len());
-    println!("Updated:            {:>16}", stats.updated.len());
-    println!("Updated (bitrot):   {:>16}", stats.updated_bitrot.len());
-    println!("Removed:            {:>16}", stats.removed.len());
-    println!("Moved:              {:>16}", stats.moved.len());
-    println!("Unchanged:          {:>16}", stats.unchanged.len());
-    println!("Total:              {:>16}", stats.total);
+    print_stat("New:", stats.added.len());
+    print_stat("Updated:", stats.updated.len());
+    print_stat("Updated (bitrot):", stats.updated_bitrot.len());
+    print_stat("Removed:", stats.removed.len());
+    print_stat("Moved:", stats.moved.len());
+    print_stat("Unchanged:", stats.unchanged.len());
+    print_stat("Total:", stats.total as usize);
     println!("====================================");
     println!();
+}
+
+fn print_stat(name: &str, count: usize) {
+    if count > 0 {
+        println!("{:20}{:>16}", name, count);
+    }
 }

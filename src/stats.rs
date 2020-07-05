@@ -82,8 +82,8 @@ impl<'a> FromIterator<Event<'a, Entry>> for Stats<'a> {
                     stats.updated.push(new);
                     stats.total += 1;
                 }
-                diff::Event::UNCHANGED { old: _, new } => {
-                    stats.unchanged.push(new);
+                diff::Event::UNCHANGED { old, new: _ } => {
+                    stats.unchanged.push(old);
                     stats.total += 1;
                 }
             }

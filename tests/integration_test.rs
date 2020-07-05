@@ -56,11 +56,6 @@ fn test_audit_no_changes() -> Result<()> {
     // Then
     let out = stdout(&result);
     assert_eq!(status_code(&result), 0);
-    assert!(match_regex(&out, r"(?m)^New:\s+0$"));
-    assert!(match_regex(&out, r"(?m)^Updated:\s+0$"));
-    assert!(match_regex(&out, r"(?m)^Updated \(bitrot\):\s+0$"));
-    assert!(match_regex(&out, r"(?m)^Removed:\s+0$"));
-    assert!(match_regex(&out, r"(?m)^Moved:\s+0$"));
     assert!(match_regex(&out, r"(?m)^Unchanged:\s+6$"));
     assert!(match_regex(&out, r"(?m)^Total:\s+6$"));
     assert!(out.contains("Audit successful"));
@@ -130,7 +125,6 @@ fn test_update() -> Result<()> {
     assert!(match_regex(&out, r"(?m)^Updated:\s+1$"));
     assert!(match_regex(&out, r"(?m)^Updated \(bitrot\):\s+1$"));
     assert!(match_regex(&out, r"(?m)^Removed:\s+2$"));
-    assert!(match_regex(&out, r"(?m)^Moved:\s+0$"));
     assert!(match_regex(&out, r"(?m)^Unchanged:\s+2$"));
     assert!(match_regex(&out, r"(?m)^Total:\s+6$"));
 
@@ -143,6 +137,22 @@ fn test_update() -> Result<()> {
 
     let result = run_audit(temp.path())?;
     assert_eq!(status_code(&result), 0);
+
+    Ok(())
+}
+
+#[test]
+fn test_update_without_changes() -> Result<()> {
+    // Given
+    let temp = tempdir()?;
+    given_dir_with_index(temp.path())?;
+
+    // When
+    let result = run_update(temp.path(), true)?;
+
+    // Then
+    assert_eq!(status_code(&result), 0);
+    assert!(stdout(&result).contains("Nothing to update."));
 
     Ok(())
 }
