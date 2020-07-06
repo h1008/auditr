@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::os::raw::c_int;
 use std::path::Path;
-use std::process::Output;
+use std::process::{Output, Command};
 use std::time;
 use std::time::SystemTime;
 
@@ -92,3 +92,11 @@ fn set_unix_times(path: &str, accessed: SystemTime, modified: SystemTime) -> Res
     }
 }
 
+pub fn run_sha256sum(path: &Path) -> Result<String> {
+    let result = Command::new("sha256sum")
+        .arg(path.to_string_lossy().to_string())
+        .output()?;
+    let stdout = String::from_utf8_lossy(&result.stdout).to_string();
+    let hash_line: Vec<&str> = stdout.split("  ").collect();
+    Ok(String::from(hash_line[0]))
+}

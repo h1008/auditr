@@ -6,7 +6,7 @@ use std::process::{Command, Output, Stdio};
 use anyhow::{bail, Result};
 use tempfile::tempdir;
 
-use common::*;
+pub use common::*;
 
 mod common;
 
