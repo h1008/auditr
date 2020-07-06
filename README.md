@@ -24,7 +24,11 @@ touch ~/Downloads/test.txt
 auditr audit ~/Downloads
 
 # Update the index
-auditr update ~/Downloads 
+auditr update ~/Downloads
+
+# Use sha256sum
+cd ~/Downloads
+sha256sum -c .checksums.sha256
 ```
 
 ## Limitations

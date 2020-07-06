@@ -1,10 +1,10 @@
+use std::collections::HashMap;
 use std::iter::FromIterator;
+use std::path::PathBuf;
 
 use crate::diff;
 use crate::diff::Event;
-use crate::index::Entry;
-use std::collections::HashMap;
-use std::path::PathBuf;
+use crate::entry::Entry;
 
 pub struct Stats<'a> {
     pub added: Vec<&'a Entry>,

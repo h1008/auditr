@@ -7,9 +7,10 @@ use clap::Clap;
 use pbr::{ProgressBar, Units};
 
 use crate::diff::diff_iter;
-use crate::index::Entry;
+use crate::entry::Entry;
 use crate::stats::Stats;
 
+mod entry;
 mod index;
 mod analyze;
 mod diff;

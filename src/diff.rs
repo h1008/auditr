@@ -93,8 +93,8 @@ impl<'a, I, F, T> Iterator for DiffIter<'a, I, F, T> where
     }
 }
 
+#[cfg(test)]
 mod tests {
-    #[cfg(test)]
     use super::*;
 
     #[test]

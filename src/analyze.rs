@@ -3,7 +3,8 @@ use std::path::Path;
 use anyhow::Result;
 use walkdir::WalkDir;
 
-use crate::index::{Entry, HASH_INDEX_NAME, META_INDEX_NAME};
+use crate::index::{HASH_INDEX_NAME, META_INDEX_NAME};
+use crate::entry::Entry;
 
 pub fn analyze_dir<T, R>(dir_name: &Path, compute_meta: bool, compute_hash: bool, mut update: T) -> Result<Vec<Entry>> where
     T: FnMut(u64) -> R {
