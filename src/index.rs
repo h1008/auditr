@@ -61,22 +61,17 @@ fn read_meta_index(file_name: &Path) -> Result<Vec<Entry>> {
 
     let mut entries: Result<Vec<Entry>> = reader.lines().map(|line| {
         let line = line?;
-        let line: Vec<&str> = line.splitn(2, "  ").collect();
-        if line.len() != 2 {
-            bail!("meta index: invalid line format");
-        }
-
-        let time_size: Vec<&str> = line[0].split('/').collect();
-        if time_size.len() != 2 {
+        let line: Vec<&str> = line.splitn(3, "  ").collect();
+        if line.len() != 3 {
             bail!("meta index: invalid line format");
         }
 
         Ok(Entry {
-            path: PathBuf::from(line[1]),
+            path: PathBuf::from(line[2]),
             hash: String::new(),
-            len: time_size[1].parse::<u64>().
+            len: line[1].parse::<u64>().
                 map_err(|err| anyhow!("invalid meta format: invalid length: {}", err))?,
-            modified: time_size[0].parse::<u128>().
+            modified: line[0].parse::<u128>().
                 map_err(|err| anyhow!("invalid meta format: invalid modified timestamp: {}", err))?,
         })
     }).collect();
@@ -122,7 +117,7 @@ fn write_meta_index(file_name: &Path, entries: &[Entry]) -> io::Result<()> {
     let result = File::create(file_name)?;
     let mut writer = BufWriter::new(result);
     for t in entries {
-        writeln!(writer, "{}/{}  {}", t.modified, t.len, t)?;
+        writeln!(writer, "{}  {}  {}", t.modified, t.len, t)?;
     }
     Ok(())
 }
@@ -150,8 +145,8 @@ mod tests {
 
         let meta_index_path = temp.path().join(META_INDEX_NAME);
         let meta_index_contents = indoc!("
-            1578770227005/297742332  test/test_non_ascii_ß€%&².txt
-            1225221568000/46738654  test/with  spaces .txt
+            1578770227005  297742332  test/test_non_ascii_ß€%&².txt
+            1225221568000  46738654  test/with  spaces .txt
             ");
         fs::write(&meta_index_path, meta_index_contents)?;
 
@@ -188,8 +183,8 @@ mod tests {
 
         let meta_index_path = temp.path().join(META_INDEX_NAME);
         let meta_index_contents = indoc!("
-            1578770227005/297742332  test/a.txt
-            1225221568000/46738654  test/c.txt
+            1578770227005  297742332  test/a.txt
+            1225221568000  46738654  test/c.txt
             ");
         fs::write(&meta_index_path, meta_index_contents)?;
 
@@ -216,7 +211,7 @@ mod tests {
 
         let meta_index_path = temp.path().join(META_INDEX_NAME);
         let meta_index_contents = indoc!("
-            1578770227005/297742332  test/a.txt
+            1578770227005  297742332  test/a.txt
             ");
         fs::write(&meta_index_path, meta_index_contents)?;
 
@@ -241,8 +236,8 @@ mod tests {
         fs::write(temp.path().join(HASH_INDEX_NAME), hash_index_contents)?;
 
         let meta_index_contents = indoc!("
-            1578770227005/297742332  test/a.txt
-            1225221568000/46738654  test/b.txt
+            1578770227005  297742332  test/a.txt
+            1225221568000  46738654  test/b.txt
             ");
         fs::write(temp.path().join(META_INDEX_NAME), meta_index_contents)?;
 
@@ -268,11 +263,11 @@ mod tests {
 
         let meta_index_contents = [
             indoc!("
-                1578770227005/297742332  test/a.txt
+                1578770227005  297742332  test/a.txt
                 INVALID"),
             indoc!("1578770227005  test/a.txt"),
-            indoc!("1578770227005/ABC297742332  test/a.txt"),
-            indoc!("ABC1578770227005/297742332  test/a.txt"),
+            indoc!("1578770227005  ABC297742332  test/a.txt"),
+            indoc!("ABC1578770227005  297742332  test/a.txt"),
         ];
 
         for c in &meta_index_contents {
@@ -320,8 +315,8 @@ mod tests {
         assert_eq!(result, expected_hash_index_content);
 
         let expected_meta_index_content = indoc!("
-            1578770227005/297742332  test/a.txt
-            1225221568000/46738654  test/b.txt
+            1578770227005  297742332  test/a.txt
+            1225221568000  46738654  test/b.txt
             ");
         let result = fs::read_to_string(temp.path().join(META_INDEX_NAME))?;
         assert_eq!(result, expected_meta_index_content);

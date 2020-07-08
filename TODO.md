@@ -1,6 +1,5 @@
 # TODO
 
-- Simplify meta index file format
 - Support exclude/include patterns
 - --update/--yes flag for audit
 - https://github.com/ssokolow/rust-cli-boilerplate
