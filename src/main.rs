@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::Clap;
 
 use auditr::*;
+use std::process;
 
 /// Auditr collects hashes and file system metadata of all files in a directory tree.
 /// The collected data can be used at later point in time to detect changes (like files added, removed, or updated).
@@ -53,6 +54,12 @@ fn main() -> Result<()> {
     match opts.subcmd {
         SubCommand::Init(u) => init(&u.directory),
         SubCommand::Update(u) => update(&u.directory),
-        SubCommand::Audit(a) => audit(&a.directory)
+        SubCommand::Audit(a) => {
+            if !audit(&a.directory)? {
+                process::exit(2);
+            }
+
+            Ok(())
+        }
     }
 }

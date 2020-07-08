@@ -73,7 +73,7 @@ fn test_update_hash() -> Result<()> {
 
     // When
     let mut len = 0u64;
-    e.update_hash(temp.path(), false, |l| len += l)?;
+    e.update_hash(temp.path(), false, &mut |l| len += l)?;
 
     // Then
     assert_eq!(e.hash, "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
@@ -101,7 +101,7 @@ fn test_update_hash_large_file() -> Result<()> {
 
     // When
     let mut len = 0u64;
-    e.update_hash(temp.path(), false, |l| len += l)?;
+    e.update_hash(temp.path(), false, &mut |l| len += l)?;
 
     // Then
     assert_eq!(e.hash, expected_hash);
@@ -124,7 +124,7 @@ fn test_update_hash_no_update() -> Result<()> {
 
     // When
     let mut len = 0u64;
-    e.update_hash(temp.path(), false, |l| len += l)?;
+    e.update_hash(temp.path(), false, &mut |l| len += l)?;
 
     // Then
     assert_eq!(e.hash, "existing_hash");
@@ -149,7 +149,7 @@ fn test_update_hash_force() -> Result<()> {
 
     // When
     let mut len = 0u64;
-    e.update_hash(temp.path(), true, |l| len += l)?;
+    e.update_hash(temp.path(), true, &mut |l| len += l)?;
 
     // Then
     assert_eq!(e.hash, "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
@@ -171,7 +171,7 @@ fn test_update_hash_non_existing_file() -> Result<()> {
     };
 
     // When
-    let result = e.update_hash(temp.path(), false, |_| ());
+    let result = e.update_hash(temp.path(), false, &mut |_| ());
 
     // Then
     assert!(result.is_err());

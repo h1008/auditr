@@ -1,5 +1,5 @@
 use std::io;
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::io::{BufWriter, Write};
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
@@ -73,7 +73,7 @@ fn test_audit_modified() -> Result<()> {
     let result = run_audit(temp.path())?;
 
     // Then
-    assert_eq!(status_code(&result), 1);
+    assert_eq!(status_code(&result), 2);
 
     let out = stdout(&result);
     assert!(match_regex(&out, r"(?m)^New:\s+1$"));
@@ -170,7 +170,7 @@ fn test_update_abort() -> Result<()> {
     assert_eq!(status_code(&result), 0);
 
     let result = run_audit(temp.path())?;
-    assert_eq!(status_code(&result), 1);
+    assert_eq!(status_code(&result), 2);
 
     Ok(())
 }
@@ -219,17 +219,10 @@ fn run_update(base: &Path, cont: bool) -> Result<Output> {
     if let Some(ref mut stdin) = c.stdin {
         let mut writer = BufWriter::new(stdin);
 
-        if let Some(ref mut stderr) = c.stderr {
-            for line in BufReader::new(stderr).lines() {
-                if line?.contains("Continue?") {
-                    if cont {
-                        writer.write_fmt(format_args!("Y\n"))?;
-                    } else {
-                        writer.write_fmt(format_args!("N\n"))?;
-                    }
-                    break;
-                }
-            }
+        if cont {
+            writer.write_fmt(format_args!("Y\n"))?;
+        } else {
+            writer.write_fmt(format_args!("N\n"))?;
         }
     }
 

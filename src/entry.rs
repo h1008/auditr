@@ -72,7 +72,7 @@ impl Entry {
         Ok(())
     }
 
-    pub fn update_hash<T, R>(&mut self, root: &Path, force: bool, update: T) -> Result<()> where
+    pub fn update_hash<T, R>(&mut self, root: &Path, force: bool, update: &mut T) -> Result<()> where
         T: FnMut(u64) -> R {
         if force || self.hash.is_empty() {
             let path = root.join(&self.path);
@@ -82,7 +82,7 @@ impl Entry {
         Ok(())
     }
 
-    fn hash_file<T, R>(file_name: &Path, mut update: T) -> Result<String> where
+    fn hash_file<T, R>(file_name: &Path, update: &mut T) -> Result<String> where
         T: FnMut(u64) -> R {
         let mut hasher = Sha256::new();
         let mut file = File::open(file_name)?;

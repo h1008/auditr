@@ -1,8 +1,9 @@
 use std::io;
-use std::io::{BufRead, stderr};
+use std::io::{BufRead, stdout};
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
+use colored::Colorize;
 use pbr::{ProgressBar, Units};
 
 use crate::diff::diff_iter;
@@ -16,26 +17,24 @@ pub mod index;
 pub mod analyze;
 
 pub fn init(directory: &str) -> Result<()> {
-    eprintln!("Initializing indices in '{}'...", directory);
-
     let path = Path::new(directory);
     if index::index_exists(path) {
         bail!("An index already exists in this directory!");
     }
 
     let total = analyze::total_file_size(path)?;
-    let mut pb = ProgressBar::on(stderr(), total as u64);
-    pb.set_units(Units::Bytes);
+    let pb_update = init_progress(total);
 
-    let entries = analyze::analyze_dir(path, true, true, |c| pb.add(c))?;
-    pb.finish_print("Done.");
+    let entries = analyze::analyze_dir(path, true, true, pb_update)?;
 
-    index::save(path, &entries)
+    index::save(path, &entries)?;
+
+    println!("{}", "Successfully initialized.".bold().green());
+
+    Ok(())
 }
 
 pub fn update(directory: &str) -> Result<()> {
-    eprintln!("Updating indices in directory '{}'...", directory);
-
     let path = Path::new(directory);
     let entries = index::load(path).
         with_context(|| format!("No index found in directory '{}'", directory))?;
@@ -45,26 +44,25 @@ pub fn update(directory: &str) -> Result<()> {
 
     let stats: Stats = it.collect();
     if !stats.modified() {
-        println!("Nothing to update.");
+        println!("{}", "Nothing to update.".bold().green());
         return Ok(());
     }
 
-    show_stats(&stats, false);
+    show_stats(&stats);
 
     if !confirm("Continue? [N/y]")? {
-        eprintln!("Aborted.");
+        println!("{}", "Aborted.".bold().yellow());
         return Ok(());
     }
 
     let total = stats.iter_new().
         filter(|e| e.hash.is_empty()).
         fold(0, |c, e| c + e.len);
-    let mut pb = ProgressBar::on(stderr(), total as u64);
-    pb.set_units(Units::Bytes);
+    let mut pb_update = init_progress(total);
 
     let with_hash = |entry: &Entry| {
         let mut e = entry.clone();
-        e.update_hash(path, false, |c| pb.add(c))?;
+        e.update_hash(path, false, &mut pb_update)?;
         Ok(e)
     };
 
@@ -72,41 +70,36 @@ pub fn update(directory: &str) -> Result<()> {
         map(with_hash).
         collect::<Result<Vec<Entry>>>()?;
     updated_entries.sort_unstable();
-    pb.finish_print("Done.");
 
     index::save(path, &updated_entries)
 }
 
-pub fn audit(directory: &str) -> Result<()> {
-    eprintln!("Running audit in directory '{}'...", directory);
-
+pub fn audit(directory: &str) -> Result<bool> {
     let path = Path::new(directory);
     let entries = index::load(path)?;
 
     let total = analyze::total_file_size(path)?;
-    let mut pb = ProgressBar::on(stderr(), total as u64);
-    pb.set_units(Units::Bytes);
+    let pb_update = init_progress(total);
 
-    let actual = analyze::analyze_dir(path, true, true, |c| pb.add(c))?;
-    pb.finish_print("Done.");
+    let actual = analyze::analyze_dir(path, true, true, pb_update)?;
 
     let it = diff_iter(entries.iter(), actual.iter(), Entry::compare_hash);
 
     let stats: Stats = it.collect();
 
-    show_stats(&stats, true);
+    show_stats(&stats);
 
     if stats.modified() {
-        bail!("Audit failed - difference detected!");
+        println!("{}", "Audit failed - difference detected!".bold().red());
+        Ok(false)
+    } else {
+        println!("{}", "Audit successful.".bold().green());
+        Ok(true)
     }
-
-    println!("Audit successful");
-
-    Ok(())
 }
 
 fn confirm(msg: &str) -> Result<bool> {
-    eprintln!("{}", msg);
+    println!("{}", msg);
 
     let stdin = io::stdin();
     let mut str = String::new();
@@ -115,36 +108,28 @@ fn confirm(msg: &str) -> Result<bool> {
     Ok(str.eq_ignore_ascii_case("y\n"))
 }
 
-fn show_stats(stats: &Stats, audit: bool) {
+fn show_stats(stats: &Stats) {
     if stats.modified() {
-        println!("Files");
-        if audit {
-            println!("New (+), deleted (-), moved (>), updated (*), updated but with same modified timestamp (!)");
-        } else {
-            println!("New (+), deleted (-), updated (*)");
-        }
-        println!();
         for s in stats.added.iter() {
-            println!("[+] {}", s);
+            print_file("+", s);
         }
         for s in stats.updated.iter() {
-            println!("[*] {}", s);
+            print_file("*", s);
         }
         for s in stats.updated_bitrot.iter() {
-            println!("[!] {}", s);
+            print_file("!", s);
         }
         for s in stats.removed.iter() {
-            println!("[-] {}", s);
+            print_file("-", s);
         }
         for (k, s) in stats.moved.iter() {
-            println!("[>] {} (from {})", s, k.to_string_lossy());
+            let line = format!("[{}] {} (from {})", ">", s, k.to_string_lossy());
+            println!("{}", line.yellow());
         }
     }
 
     println!();
-    println!("====================================");
-    println!("Stats");
-    println!("------------------------------------");
+    println!("{}", "====================================".dimmed());
     print_stat("New:", stats.added.len());
     print_stat("Updated:", stats.updated.len());
     print_stat("Updated (bitrot):", stats.updated_bitrot.len());
@@ -152,12 +137,31 @@ fn show_stats(stats: &Stats, audit: bool) {
     print_stat("Moved:", stats.moved.len());
     print_stat("Unchanged:", stats.unchanged.len());
     print_stat("Total:", stats.total as usize);
-    println!("====================================");
+    println!("{}", "====================================".dimmed());
     println!();
+}
+
+fn print_file(event: &str, entry: &Entry) {
+    println!("{}", format!("[{}] {}", event, entry).yellow());
 }
 
 fn print_stat(name: &str, count: usize) {
     if count > 0 {
-        println!("{:20}{:>16}", name, count);
+        println!("{:20}{:>16}", name.bold(), count);
+    }
+}
+
+fn init_progress(total: u64) -> impl FnMut(u64) -> u64 {
+    let is_a_tty = atty::is(atty::Stream::Stdout);
+
+    let mut pb = ProgressBar::on(stdout(), total);
+    pb.set_units(Units::Bytes);
+
+    move |c| {
+        if is_a_tty {
+            pb.add(c)
+        } else {
+            0
+        }
     }
 }

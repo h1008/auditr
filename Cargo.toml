@@ -10,6 +10,8 @@ sha2 = "0.8.1"
 walkdir = "2"
 anyhow = "1.0"
 pbr = "1.0.2"
+colored = "1.9"
+atty = "0.2"
 
 [dev-dependencies]
 tempfile = "3"
