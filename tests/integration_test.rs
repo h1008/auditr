@@ -67,7 +67,7 @@ fn test_audit_no_changes() -> Result<()> {
 fn test_audit_modified() -> Result<()> {
     // Given
     let temp = tempdir()?;
-    given_dir_with_modified_index(temp.path())?;
+    given_dir_with_modified_index(temp.path(), false)?;
 
     // When
     let result = run_audit(temp.path())?;
@@ -78,17 +78,35 @@ fn test_audit_modified() -> Result<()> {
     let out = stdout(&result);
     assert!(match_regex(&out, r"(?m)^New:\s+1$"));
     assert!(match_regex(&out, r"(?m)^Updated:\s+1$"));
-    assert!(match_regex(&out, r"(?m)^Updated \(bitrot\):\s+1$"));
     assert!(match_regex(&out, r"(?m)^Removed:\s+1$"));
     assert!(match_regex(&out, r"(?m)^Moved:\s+1$"));
-    assert!(match_regex(&out, r"(?m)^Unchanged:\s+2$"));
+    assert!(match_regex(&out, r"(?m)^Unchanged:\s+3$"));
     assert!(match_regex(&out, r"(?m)^Total:\s+6$"));
 
     assert!(out.contains("[+] a/new.txt"));
     assert!(out.contains("[*] f1.txt"));
-    assert!(out.contains("[!] a/f2a.txt"));
     assert!(out.contains("[-] a/b/f3.txt"));
     assert!(out.contains("[>] a/large_new.txt (from c/large.txt)"));
+
+    Ok(())
+}
+
+#[test]
+fn test_audit_modified_bitrot() -> Result<()> {
+    // Given
+    let temp = tempdir()?;
+    given_dir_with_modified_index(temp.path(), true)?;
+
+    // When
+    let result = run_audit(temp.path())?;
+
+    // Then
+    assert_eq!(status_code(&result), 3);
+
+    let out = stdout(&result);
+    assert!(match_regex(&out, r"(?m)^Updated \(bitrot\):\s+1$"));
+
+    assert!(out.contains("[!] a/f2a.txt"));
 
     Ok(())
 }
@@ -112,7 +130,7 @@ fn test_audit_without_index() -> Result<()> {
 fn test_update() -> Result<()> {
     // Given
     let temp = tempdir()?;
-    given_dir_with_modified_index(temp.path())?;
+    given_dir_with_modified_index(temp.path(), true)?;
 
     // When
     let result = run_update(temp.path(), true)?;
@@ -161,7 +179,7 @@ fn test_update_without_changes() -> Result<()> {
 fn test_update_abort() -> Result<()> {
     // Given
     let temp = tempdir()?;
-    given_dir_with_modified_index(temp.path())?;
+    given_dir_with_modified_index(temp.path(), false)?;
 
     // When
     let result = run_update(temp.path(), false)?;
@@ -248,14 +266,17 @@ fn given_dir_with_index(base: &Path) -> Result<()> {
     Ok(())
 }
 
-fn given_dir_with_modified_index(base: &Path) -> Result<()> {
+fn given_dir_with_modified_index(base: &Path, bitrot: bool) -> Result<()> {
     given_dir_with_index(base)?;
 
     given_file_with_random_contents(base, "a/new.txt", 10 * 1024)?; // New file
     replace_file_with_contents(base, "f1.txt", "new contents", false)?; // Updated file
-    replace_file_with_contents(base, "a/f2a.txt", "new contents", true)?; // File with bitrot
     std::fs::remove_dir_all(base.join("a/b"))?; // Removed file
     std::fs::rename(base.join("c/large.txt"), base.join("a/large_new.txt"))?; // Moved file
+
+    if bitrot {
+        replace_file_with_contents(base, "a/f2a.txt", "new contents", true)?; // File with bitrot
+    }
 
     Ok(())
 }

@@ -16,7 +16,7 @@ pub mod stats;
 pub mod index;
 pub mod analyze;
 
-pub fn init(directory: &str) -> Result<()> {
+pub fn init(directory: &str) -> Result<i32> {
     let path = Path::new(directory);
     if index::index_exists(path) {
         bail!("An index already exists in this directory!");
@@ -31,10 +31,10 @@ pub fn init(directory: &str) -> Result<()> {
 
     println!("{}", "Successfully initialized.".bold().green());
 
-    Ok(())
+    Ok(0)
 }
 
-pub fn update(directory: &str) -> Result<()> {
+pub fn update(directory: &str) -> Result<i32> {
     let path = Path::new(directory);
     let entries = index::load(path).
         with_context(|| format!("No index found in directory '{}'", directory))?;
@@ -45,14 +45,14 @@ pub fn update(directory: &str) -> Result<()> {
     let stats: Stats = it.collect();
     if !stats.modified() {
         println!("{}", "Nothing to update.".bold().green());
-        return Ok(());
+        return Ok(0);
     }
 
     show_stats(&stats);
 
     if !confirm("Continue? [N/y]")? {
         println!("{}", "Aborted.".bold().yellow());
-        return Ok(());
+        return Ok(0);
     }
 
     let total = stats.iter_new().
@@ -71,10 +71,11 @@ pub fn update(directory: &str) -> Result<()> {
         collect::<Result<Vec<Entry>>>()?;
     updated_entries.sort_unstable();
 
-    index::save(path, &updated_entries)
+    index::save(path, &updated_entries)?;
+    Ok(0)
 }
 
-pub fn audit(directory: &str) -> Result<bool> {
+pub fn audit(directory: &str, update: bool) -> Result<i32> {
     let path = Path::new(directory);
     let entries = index::load(path)?;
 
@@ -89,13 +90,29 @@ pub fn audit(directory: &str) -> Result<bool> {
 
     show_stats(&stats);
 
+    if !stats.updated_bitrot.is_empty() {
+        println!("{}", "Audit failed - bitrot detected!".bold().red());
+
+        if update {
+            println!("Index was not updated")
+        }
+
+        return Ok(3);
+    }
+
     if stats.modified() {
         println!("{}", "Audit failed - difference detected!".bold().red());
-        Ok(false)
-    } else {
-        println!("{}", "Audit successful.".bold().green());
-        Ok(true)
+
+        if update {
+            index::save(path, &actual)?;
+            println!("Index updated.");
+        }
+
+        return Ok(2);
     }
+
+    println!("{}", "Audit successful.".bold().green());
+    Ok(0)
 }
 
 fn confirm(msg: &str) -> Result<bool> {

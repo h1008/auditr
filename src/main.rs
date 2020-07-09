@@ -1,8 +1,10 @@
+use std::process;
+
 use anyhow::Result;
 use clap::Clap;
+use colored::Colorize;
 
 use auditr::*;
-use std::process;
 
 /// Auditr collects hashes and file system metadata of all files in a directory tree.
 /// The collected data can be used at later point in time to detect changes (like files added, removed, or updated).
@@ -39,27 +41,35 @@ struct Init {
 /// After confirmation, compute new index and commit
 #[derive(Clap)]
 struct Update {
-    directory: String
+    directory: String,
 }
 
 /// Compares the directory's current state to the index and outputs the differences
 #[derive(Clap)]
 struct Audit {
-    directory: String
+    directory: String,
+
+    /// Update the index after audit unless bitrot was detected.
+    #[clap(short, long)]
+    update: bool,
 }
 
-fn main() -> Result<()> {
+fn run() -> Result<i32> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
         SubCommand::Init(u) => init(&u.directory),
         SubCommand::Update(u) => update(&u.directory),
-        SubCommand::Audit(a) => {
-            if !audit(&a.directory)? {
-                process::exit(2);
-            }
-
-            Ok(())
-        }
+        SubCommand::Audit(a) => audit(&a.directory, a.update)
     }
+}
+
+fn main() {
+    process::exit(match run() {
+        Ok(ret) => ret,
+        Err(err) => {
+            eprintln!("{}", err.to_string().bold().red());
+            1
+        }
+    });
 }
