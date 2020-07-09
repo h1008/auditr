@@ -84,7 +84,7 @@ pub fn audit(directory: &str, update: bool) -> Result<i32> {
 
     let actual = analyze::analyze_dir(path, true, true, pb_update)?;
 
-    let it = diff_iter(entries.iter(), actual.iter(), Entry::compare_hash);
+    let it = diff_iter(entries.iter(), actual.iter(), Entry::compare_hash_and_mtime);
 
     let stats: Stats = it.collect();
 

@@ -63,6 +63,10 @@ impl Entry {
         e1.hash == e2.hash
     }
 
+    pub fn compare_hash_and_mtime(e1: &Entry, e2: &Entry) -> bool {
+        e1.modified == e2.modified && e1.hash == e2.hash
+    }
+
     pub fn update_meta(&mut self, root: &Path) -> Result<()> {
         let path = root.join(&self.path);
         let meta = fs::metadata(path)?;

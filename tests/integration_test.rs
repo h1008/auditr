@@ -77,14 +77,15 @@ fn test_audit_modified() -> Result<()> {
 
     let out = stdout(&result);
     assert!(match_regex(&out, r"(?m)^New:\s+1$"));
-    assert!(match_regex(&out, r"(?m)^Updated:\s+1$"));
+    assert!(match_regex(&out, r"(?m)^Updated:\s+2$"));
     assert!(match_regex(&out, r"(?m)^Removed:\s+1$"));
     assert!(match_regex(&out, r"(?m)^Moved:\s+1$"));
-    assert!(match_regex(&out, r"(?m)^Unchanged:\s+3$"));
+    assert!(match_regex(&out, r"(?m)^Unchanged:\s+2$"));
     assert!(match_regex(&out, r"(?m)^Total:\s+6$"));
 
     assert!(out.contains("[+] a/new.txt"));
     assert!(out.contains("[*] f1.txt"));
+    assert!(out.contains("[*] a/f2b.txt"));
     assert!(out.contains("[-] a/b/f3.txt"));
     assert!(out.contains("[>] a/large_new.txt (from c/large.txt)"));
 
@@ -140,10 +141,10 @@ fn test_update() -> Result<()> {
 
     let out = stdout(&result);
     assert!(match_regex(&out, r"(?m)^New:\s+2$"));
-    assert!(match_regex(&out, r"(?m)^Updated:\s+1$"));
+    assert!(match_regex(&out, r"(?m)^Updated:\s+2$"));
     assert!(match_regex(&out, r"(?m)^Updated \(bitrot\):\s+1$"));
     assert!(match_regex(&out, r"(?m)^Removed:\s+2$"));
-    assert!(match_regex(&out, r"(?m)^Unchanged:\s+2$"));
+    assert!(match_regex(&out, r"(?m)^Unchanged:\s+1$"));
     assert!(match_regex(&out, r"(?m)^Total:\s+6$"));
 
     assert!(out.contains("[+] a/new.txt"));
@@ -271,6 +272,7 @@ fn given_dir_with_modified_index(base: &Path, bitrot: bool) -> Result<()> {
 
     given_file_with_random_contents(base, "a/new.txt", 10 * 1024)?; // New file
     replace_file_with_contents(base, "f1.txt", "new contents", false)?; // Updated file
+    replace_file_with_contents(base, "a/f2b.txt", "f2", false)?; // Updated file, only mtime
     std::fs::remove_dir_all(base.join("a/b"))?; // Removed file
     std::fs::rename(base.join("c/large.txt"), base.join("a/large_new.txt"))?; // Moved file
 
