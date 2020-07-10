@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, bail, Result};
 
 use crate::entry::Entry;
+use crate::filter::PathFilter;
 
 pub const HASH_INDEX_NAME: &str = ".checksums.sha256";
 pub const META_INDEX_NAME: &str = ".checksums.meta";
@@ -17,9 +18,9 @@ pub fn index_exists(path: &Path) -> bool {
     hash_index_file.exists() || meta_index_file.exists()
 }
 
-pub fn load(path: &Path) -> Result<Vec<Entry>> {
-    let hash_index = read_hash_index(&path.join(HASH_INDEX_NAME))?;
-    let meta_index = read_meta_index(&path.join(META_INDEX_NAME))?;
+pub fn load(path: &Path, filter: &dyn PathFilter) -> Result<Vec<Entry>> {
+    let hash_index = read_hash_index(path, filter)?;
+    let meta_index = read_meta_index(path, filter)?;
     join_indices(hash_index, meta_index)
 }
 
@@ -29,15 +30,11 @@ pub fn save(path: &Path, entries: &[Entry]) -> Result<()> {
     Ok(())
 }
 
-fn read_hash_index(file_name: &Path) -> Result<Vec<Entry>> {
-    let file = File::open(file_name)?;
-    let reader = BufReader::new(file);
-
-    let mut entries: Result<Vec<Entry>> = reader.lines().map(|line| {
-        let line = line?;
+fn read_hash_index(path: &Path, filter: &dyn PathFilter) -> Result<Vec<Entry>> {
+    read_index(path, HASH_INDEX_NAME, filter, |line| {
         let line: Vec<&str> = line.splitn(2, "  ").collect();
         if line.len() != 2 {
-            bail!("invalid hash index");
+            return Err(anyhow!("invalid hash index"));
         }
 
         Ok(Entry {
@@ -46,21 +43,11 @@ fn read_hash_index(file_name: &Path) -> Result<Vec<Entry>> {
             len: 0,
             modified: 0,
         })
-    }).collect();
-
-    if let Ok(ref mut e) = entries {
-        e.sort_unstable()
-    }
-
-    entries
+    })
 }
 
-fn read_meta_index(file_name: &Path) -> Result<Vec<Entry>> {
-    let file = File::open(file_name)?;
-    let reader = BufReader::new(file);
-
-    let mut entries: Result<Vec<Entry>> = reader.lines().map(|line| {
-        let line = line?;
+fn read_meta_index(path: &Path, filter: &dyn PathFilter) -> Result<Vec<Entry>> {
+    read_index(path, META_INDEX_NAME, filter, |line| {
         let line: Vec<&str> = line.splitn(3, "  ").collect();
         if line.len() != 3 {
             bail!("meta index: invalid line format");
@@ -74,7 +61,23 @@ fn read_meta_index(file_name: &Path) -> Result<Vec<Entry>> {
             modified: line[0].parse::<u128>().
                 map_err(|err| anyhow!("invalid meta format: invalid modified timestamp: {}", err))?,
         })
-    }).collect();
+    })
+}
+
+fn read_index<F>(path: &Path, file_name: &str, filter: &dyn PathFilter, mut f: F) -> Result<Vec<Entry>> where
+    F: FnMut(String) -> Result<Entry> {
+    let file = File::open(&path.join(file_name))?;
+    let reader = BufReader::new(file);
+
+    let mut entries: Result<Vec<Entry>> = reader.lines().
+        map(|line| f(line?)).
+        filter(|entry| {
+            if let Ok(e) = entry {
+                filter.matches(&path.join(e.path.as_path()))
+            } else {
+                true
+            }
+        }).collect();
 
     if let Ok(ref mut e) = entries {
         e.sort_unstable()
@@ -129,6 +132,8 @@ mod tests {
     use indoc::indoc;
     use tempfile::tempdir;
 
+    use crate::filter::DefaultPathFilter;
+
     use super::*;
 
     #[test]
@@ -151,7 +156,7 @@ mod tests {
         fs::write(&meta_index_path, meta_index_contents)?;
 
         // When
-        let entries = load(temp.path())?;
+        let entries = load(temp.path(), &DefaultPathFilter::new(temp.path()))?;
 
         // Then
         assert_eq!(entries.len(), 2);
@@ -165,6 +170,41 @@ mod tests {
         assert_eq!(entries[1].hash, "048287162a3a9e8976f0aec50af82965c7c622d479bcf15f4db2d67358bd0544");
         assert_eq!(entries[1].len, 46738654);
         assert_eq!(entries[1].modified, 1225221568000);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_load_filter() -> Result<()> {
+        // Given
+        let temp = tempdir()?;
+
+        let hash_index_path = temp.path().join(HASH_INDEX_NAME);
+        let hash_index_contents = indoc!("
+            9489d28fbd325690224dd76c0d7ae403177e15a0d63758cc0171327b5ba2aa85  .checksums.meta
+            048287162a3a9e8976f0aec50af82965c7c622d479bcf15f4db2d67358bd0544  .checksums.sha256
+            0675e5e9efc82e1a795e61b616093adb13b6140b0f658d1f71ec8b9b733418fb  test/a.txt
+            ");
+        fs::write(&hash_index_path, hash_index_contents)?;
+
+        let meta_index_path = temp.path().join(META_INDEX_NAME);
+        let meta_index_contents = indoc!("
+            1578770227005  297742332  .checksums.meta
+            1225221568000  46738654  .checksums.sha256
+            1771134938456  123492301  test/a.txt
+            ");
+        fs::write(&meta_index_path, meta_index_contents)?;
+
+        // When
+        let entries = load(temp.path(), &DefaultPathFilter::new(temp.path()))?;
+
+        // Then
+        assert_eq!(entries.len(), 1);
+
+        assert_eq!(entries[0].path.to_string_lossy(), "test/a.txt");
+        assert_eq!(entries[0].hash, "0675e5e9efc82e1a795e61b616093adb13b6140b0f658d1f71ec8b9b733418fb");
+        assert_eq!(entries[0].len, 123492301);
+        assert_eq!(entries[0].modified, 1771134938456);
 
         Ok(())
     }
@@ -189,7 +229,7 @@ mod tests {
         fs::write(&meta_index_path, meta_index_contents)?;
 
         // When
-        let result = load(temp.path());
+        let result = load(temp.path(), &DefaultPathFilter::new(temp.path()));
 
         // Then
         assert_eq!(result.map_err(|e| e.to_string()), Err(String::from("path of index entries do not match")));
@@ -216,7 +256,7 @@ mod tests {
         fs::write(&meta_index_path, meta_index_contents)?;
 
         // When
-        let result = load(temp.path());
+        let result = load(temp.path(), &DefaultPathFilter::new(temp.path()));
 
         // Then
         assert_eq!(result.map_err(|e| e.to_string()), Err(String::from("indices must have same number of entries")));
@@ -242,7 +282,7 @@ mod tests {
         fs::write(temp.path().join(META_INDEX_NAME), meta_index_contents)?;
 
         // When
-        let result = load(temp.path());
+        let result = load(temp.path(), &DefaultPathFilter::new(temp.path()));
 
         // Then
         assert_eq!(result.map_err(|e| e.to_string()), Err(String::from("invalid hash index")));
@@ -274,7 +314,7 @@ mod tests {
             fs::write(temp.path().join(META_INDEX_NAME), c)?;
 
             // When
-            let result = load(temp.path());
+            let result = load(temp.path(), &DefaultPathFilter::new(temp.path()));
 
             // Then
             assert!(result.is_err(), "expected error for index content: {:?}", c);

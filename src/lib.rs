@@ -8,6 +8,7 @@ use pbr::{ProgressBar, Units};
 
 use crate::diff::diff_iter;
 use crate::entry::Entry;
+use crate::filter::DefaultPathFilter;
 use crate::filter::globfilter::GlobPathFilter;
 use crate::stats::Stats;
 
@@ -39,7 +40,7 @@ pub fn init(directory: &str) -> Result<i32> {
 
 pub fn update(directory: &str) -> Result<i32> {
     let path = Path::new(directory);
-    let entries = index::load(path).
+    let entries = index::load(path, &DefaultPathFilter::new(path)).
         with_context(|| format!("No index found in directory '{}'", directory))?;
 
     let filter = GlobPathFilter::default(path)?;
@@ -81,7 +82,7 @@ pub fn update(directory: &str) -> Result<i32> {
 
 pub fn audit(directory: &str, update: bool) -> Result<i32> {
     let path = Path::new(directory);
-    let entries = index::load(path)?;
+    let entries = index::load(path, &DefaultPathFilter::new(path))?;
 
     let filter = GlobPathFilter::default(path)?;
     let total = analyze::total_file_size(path, &filter)?;

@@ -48,7 +48,7 @@ impl TryFrom<&str> for GlobRule {
     type Error = anyhow::Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let include = match value.chars().nth(0) {
+        let include = match value.chars().next() {
             Some('+') => true,
             Some('-') => false,
             _ => bail!("invalid glob rule pattern: {}", value)
