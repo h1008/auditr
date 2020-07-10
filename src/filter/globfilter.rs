@@ -1,6 +1,8 @@
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use std::fmt;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::path::Path;
 
 use anyhow::{bail, Result};
@@ -10,6 +12,7 @@ use lazy_static::lazy_static;
 use crate::filter::PathFilter;
 use crate::index::{HASH_INDEX_NAME, META_INDEX_NAME};
 
+#[derive(Clone)]
 pub struct GlobRule {
     pattern: glob::Pattern,
     include: bool,
@@ -22,6 +25,22 @@ impl GlobRule {
             pattern,
             include,
         })
+    }
+
+    fn load_rules(file_name: &Path) -> Result<Vec<GlobRule>> {
+        let file = File::open(file_name)?;
+        let reader = BufReader::new(file);
+
+        let mut rules = reader.lines().
+            map(|line| GlobRule::try_from(line?.as_str())).
+            collect::<Result<Vec<GlobRule>>>()?;
+
+        let mut all_rules = Vec::with_capacity(2 + rules.len());
+        all_rules.push(DEFAULT_RULES[0].clone());
+        all_rules.push(DEFAULT_RULES[1].clone());
+        all_rules.append(&mut rules);
+
+        Ok(all_rules)
     }
 }
 
@@ -92,6 +111,11 @@ impl PathFilter for GlobPathFilter<'_> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
+    use indoc::*;
+    use tempfile::tempdir;
+
     use super::*;
 
     #[test]
@@ -188,6 +212,32 @@ mod tests {
         assert_eq!(filter.matches(Path::new("/some/path/.checksums.sha256")), false);
         assert_eq!(filter.matches(Path::new("/some/path/dir/.checksums.meta")), true);
         assert_eq!(filter.matches(Path::new("/some/path/dir/.checksums.sha256")), true);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_load_rules() -> Result<()> {
+        let temp = tempdir()?;
+
+        let path = temp.path().join(".auditr-ignore");
+        let rules_file = indoc!("
+            + some/dir/file.txt
+            - some/dir/*
+        ");
+        fs::write(path.as_path(), rules_file)?;
+
+        let rules = GlobRule::load_rules(path.as_path())?;
+
+        assert_eq!(rules.len(), 4);
+        assert_eq!(rules[0].pattern.as_str(), HASH_INDEX_NAME);
+        assert_eq!(rules[0].include, false);
+        assert_eq!(rules[1].pattern.as_str(), META_INDEX_NAME);
+        assert_eq!(rules[1].include, false);
+        assert_eq!(rules[2].pattern.as_str(), "some/dir/file.txt");
+        assert_eq!(rules[2].include, true);
+        assert_eq!(rules[3].pattern.as_str(), "some/dir/*");
+        assert_eq!(rules[3].include, false);
 
         Ok(())
     }
