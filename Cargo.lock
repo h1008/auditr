@@ -36,6 +36,7 @@ dependencies = [
  "colored",
  "glob",
  "indoc",
+ "lazy_static",
  "libc",
  "mockall",
  "pbr",

@@ -2,8 +2,10 @@ use std::path::Path;
 
 use crate::index::{HASH_INDEX_NAME, META_INDEX_NAME};
 
+pub mod globfilter;
+
 pub trait PathFilter {
-    fn matches(&self, e: &Path) -> bool;
+    fn matches(&self, p: &Path) -> bool;
 }
 
 pub struct DefaultPathFilter {
@@ -21,8 +23,8 @@ impl DefaultPathFilter {
 }
 
 impl PathFilter for DefaultPathFilter {
-    fn matches(&self, e: &Path) -> bool {
-        !self.excluded.contains(&e.to_string_lossy().to_string())
+    fn matches(&self, p: &Path) -> bool {
+        !self.excluded.contains(&p.to_string_lossy().to_string())
     }
 }
 
@@ -30,7 +32,7 @@ impl PathFilter for DefaultPathFilter {
 mod tests {
     use super::*;
 
-    macro_rules! filter_tests {
+    macro_rules! default_filter_tests {
         ($($name:ident: $value:expr,)*) => {
         $(
             #[test]
@@ -43,7 +45,7 @@ mod tests {
         }
     }
 
-    filter_tests!{
+    default_filter_tests! {
         test_full_path: (Path::new("/some/path/a/test.txt"), true),
         test_relative_path: (Path::new("a/test.txt"), true),
         test_meta_index_relative_path: (Path::new(META_INDEX_NAME), true),
