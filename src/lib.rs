@@ -9,12 +9,14 @@ use pbr::{ProgressBar, Units};
 use crate::diff::diff_iter;
 use crate::entry::Entry;
 use crate::stats::Stats;
+use crate::filter::DefaultPathFilter;
 
 pub mod entry;
 pub mod diff;
 pub mod stats;
 pub mod index;
 pub mod analyze;
+pub mod filter;
 
 pub fn init(directory: &str) -> Result<i32> {
     let path = Path::new(directory);
@@ -22,10 +24,11 @@ pub fn init(directory: &str) -> Result<i32> {
         bail!("An index already exists in this directory!");
     }
 
-    let total = analyze::total_file_size(path)?;
+    let filter = DefaultPathFilter::new(path);
+    let total = analyze::total_file_size(path, &filter)?;
     let pb_update = init_progress(total);
 
-    let entries = analyze::analyze_dir(path, true, true, pb_update)?;
+    let entries = analyze::analyze_dir(path, &filter, true, true, pb_update)?;
 
     index::save(path, &entries)?;
 
@@ -39,7 +42,8 @@ pub fn update(directory: &str) -> Result<i32> {
     let entries = index::load(path).
         with_context(|| format!("No index found in directory '{}'", directory))?;
 
-    let actual = analyze::analyze_dir(path, true, false, |_| {})?;
+    let filter = DefaultPathFilter::new(path);
+    let actual = analyze::analyze_dir(path, &filter, true, false, |_| {})?;
     let it = diff_iter(entries.iter(), actual.iter(), Entry::compare_meta);
 
     let stats: Stats = it.collect();
@@ -79,10 +83,11 @@ pub fn audit(directory: &str, update: bool) -> Result<i32> {
     let path = Path::new(directory);
     let entries = index::load(path)?;
 
-    let total = analyze::total_file_size(path)?;
+    let filter = DefaultPathFilter::new(path);
+    let total = analyze::total_file_size(path, &filter)?;
     let pb_update = init_progress(total);
 
-    let actual = analyze::analyze_dir(path, true, true, pb_update)?;
+    let actual = analyze::analyze_dir(path, &filter, true, true, pb_update)?;
 
     let it = diff_iter(entries.iter(), actual.iter(), Entry::compare_hash_and_mtime);
 

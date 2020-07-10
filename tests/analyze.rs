@@ -1,15 +1,24 @@
 extern crate auditr;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
+use mockall::*;
+use mockall::predicate::always;
 use tempfile::tempdir;
 
 use auditr::analyze::{analyze_dir, total_file_size};
-use auditr::index::{HASH_INDEX_NAME, META_INDEX_NAME};
+use auditr::filter::PathFilter;
 pub use common::*;
 
 mod common;
+
+mock! {
+    PathFilter {}
+    trait PathFilter {
+        fn matches(&self, e: &Path) -> bool;
+    }
+}
 
 #[test]
 fn test_analyze() -> Result<()> {
@@ -20,10 +29,16 @@ fn test_analyze() -> Result<()> {
     given_file_with_random_contents(temp.path(), "a/f2.txt", 1024)?;
     given_file_with_random_contents(temp.path(), "b/f3.txt", 64)?;
     given_file_with_random_contents(temp.path(), "a4.txt", 16)?;
+    given_file_with_random_contents(temp.path(), "c/f1.txt", 16)?;
+
+    let mut filter = MockPathFilter::new();
+    filter.expect_matches()
+        .with(always())
+        .returning(|e| !e.to_string_lossy().ends_with("/c"));
 
     // When
     let mut len = 0;
-    let entries = analyze_dir(temp.path(), true, true, |l| len += l)?;
+    let entries = analyze_dir(temp.path(), &filter, true, true, |l| len += l)?;
 
     // Then
     assert_eq!(entries.len(), 4);
@@ -54,34 +69,17 @@ fn test_analyze() -> Result<()> {
 }
 
 #[test]
-fn test_analyze_exclude_index_files() -> Result<()> {
-    // Given
-    let temp = tempdir()?;
-
-    given_file_with_random_contents(temp.path(), HASH_INDEX_NAME, 128)?;
-    given_file_with_random_contents(temp.path(), META_INDEX_NAME, 128)?;
-
-    // When
-    let mut called = 0;
-    let entries = analyze_dir(temp.path(), true, true, |_| called += 1)?;
-
-    // Then
-    assert_eq!(entries.len(), 0);
-    assert_eq!(called, 0);
-
-    Ok(())
-}
-
-#[test]
 fn test_analyze_without_meta() -> Result<()> {
     // Given
     let temp = tempdir()?;
 
     given_file_with_random_contents(temp.path(), "a/f1.txt", 128)?;
 
+    let filter = given_filter_accepting_all();
+
     // When
     let mut len = 0;
-    let entries = analyze_dir(temp.path(), false, true, |l| len += l)?;
+    let entries = analyze_dir(temp.path(), &filter, false, true, |l| len += l)?;
 
     // Then
     assert_eq!(entries.len(), 1);
@@ -101,9 +99,11 @@ fn test_analyze_without_hash() -> Result<()> {
 
     given_file_with_random_contents(temp.path(), "a/f1.txt", 128)?;
 
+    let filter = given_filter_accepting_all();
+
     // When
     let mut called = 0;
-    let entries = analyze_dir(temp.path(), true, false, |_| called += 1)?;
+    let entries = analyze_dir(temp.path(), &filter, true, false, |_| called += 1)?;
 
     // Then
     assert_eq!(entries.len(), 1);
@@ -122,14 +122,26 @@ fn test_total_file_size() -> Result<()> {
     given_file_with_random_contents(temp.path(), "a/f2.txt", 1024)?;
     given_file_with_random_contents(temp.path(), "b/f3.txt", 64)?;
     given_file_with_random_contents(temp.path(), "a4.txt", 16)?;
-    given_file_with_random_contents(temp.path(), HASH_INDEX_NAME, 128)?;
-    given_file_with_random_contents(temp.path(), META_INDEX_NAME, 128)?;
+    given_file_with_random_contents(temp.path(), "c.txt", 128)?;
+
+    let mut filter = MockPathFilter::new();
+    filter.expect_matches()
+        .with(always())
+        .returning(|e| !e.to_string_lossy().ends_with("c.txt"));
 
     // When
-    let size = total_file_size(temp.path())?;
+    let size = total_file_size(temp.path(), &filter)?;
 
     // Then
     assert_eq!(size, 128 + 1024 + 64 + 16);
 
     Ok(())
+}
+
+fn given_filter_accepting_all() -> MockPathFilter {
+    let mut filter = MockPathFilter::new();
+    filter.expect_matches()
+        .with(always())
+        .returning(|_| true);
+    filter
 }

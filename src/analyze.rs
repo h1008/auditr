@@ -3,20 +3,16 @@ use std::path::Path;
 use anyhow::Result;
 use walkdir::WalkDir;
 
-use crate::index::{HASH_INDEX_NAME, META_INDEX_NAME};
 use crate::entry::Entry;
+use crate::filter::PathFilter;
 
-pub fn analyze_dir<T, R>(dir_name: &Path, compute_meta: bool, compute_hash: bool, mut update: T) -> Result<Vec<Entry>> where
+pub fn analyze_dir<T, R>(dir_name: &Path, filter: &dyn PathFilter, compute_meta: bool, compute_hash: bool, mut update: T) -> Result<Vec<Entry>> where
     T: FnMut(u64) -> R {
     let mut entries = Vec::new();
 
-    let hash_idx_path = dir_name.join(Path::new(HASH_INDEX_NAME));
-    let meta_idx_path = dir_name.join(Path::new(META_INDEX_NAME));
-
-    let excluded: [&Path; 2] = [hash_idx_path.as_path(), meta_idx_path.as_path()];
     let walk = WalkDir::new(dir_name).
         into_iter().
-        filter_entry(|e| !excluded.contains(&e.path()));
+        filter_entry(|e| filter.matches(e.path()));
 
     for entry in walk {
         let entry = entry?;
@@ -43,7 +39,7 @@ pub fn analyze_dir<T, R>(dir_name: &Path, compute_meta: bool, compute_hash: bool
     Ok(entries)
 }
 
-pub fn total_file_size(dir_name: &Path) -> Result<u64> {
-    let entries = analyze_dir(dir_name, true, false, |_| ())?;
+pub fn total_file_size(dir_name: &Path, filter: &dyn PathFilter) -> Result<u64> {
+    let entries = analyze_dir(dir_name, filter, true, false, |_| ())?;
     Ok(entries.iter().fold(0, |d, i| d + i.len))
 }
