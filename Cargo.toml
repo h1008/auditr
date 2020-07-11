@@ -2,6 +2,7 @@
 name = "auditr"
 version = "0.1.0"
 authors = ["h1008 <9917357+h1008@users.noreply.github.com>"]
+license = "MIT"
 edition = "2018"
 
 [dependencies]
