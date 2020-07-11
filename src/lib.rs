@@ -99,7 +99,7 @@ pub fn audit(directory: &str, update: bool) -> Result<i32> {
         println!("{}", "Audit failed - bitrot detected!".bold().red());
 
         if update {
-            println!("Index was not updated")
+            println!("Index was not updated.")
         }
 
         return Ok(3);

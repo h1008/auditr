@@ -115,6 +115,63 @@ fn test_audit_modified_bitrot() -> Result<()> {
 }
 
 #[test]
+fn test_audit_update() -> Result<()> {
+    // Given
+    let temp = tempdir()?;
+    given_dir_with_modified_index(temp.path(), false)?;
+
+    // When
+    let result = run_audit_update(temp.path())?;
+
+    // Then
+    assert_eq!(status_code(&result), 2);
+
+    let out = stdout(&result);
+    assert!(match_regex(&out, r"(?m)^New:\s+1$"));
+    assert!(match_regex(&out, r"(?m)^Updated:\s+2$"));
+    assert!(match_regex(&out, r"(?m)^Removed:\s+1$"));
+    assert!(match_regex(&out, r"(?m)^Moved:\s+1$"));
+    assert!(match_regex(&out, r"(?m)^Unchanged:\s+2$"));
+    assert!(match_regex(&out, r"(?m)^Total:\s+6$"));
+
+    assert!(out.contains("[+] a/new.txt"));
+    assert!(out.contains("[*] f1.txt"));
+    assert!(out.contains("[*] a/f2b.txt"));
+    assert!(out.contains("[-] a/b/f3.txt"));
+    assert!(out.contains("[>] a/large_new.txt (from c/large.txt)"));
+
+    assert!(out.contains("Index updated."));
+
+    let result = run_audit(temp.path())?;
+    assert_eq!(status_code(&result), 0);
+
+    Ok(())
+}
+
+#[test]
+fn test_audit_update_bitrot() -> Result<()> {
+    // Given
+    let temp = tempdir()?;
+    given_dir_with_modified_index(temp.path(), true)?;
+
+    // When
+    let result = run_audit_update(temp.path())?;
+
+    // Then
+    assert_eq!(status_code(&result), 3);
+
+    let out = stdout(&result);
+    assert!(match_regex(&out, r"(?m)^Updated \(bitrot\):\s+1$"));
+    assert!(out.contains("[!] a/f2a.txt"));
+    assert!(out.contains("Index was not updated."));
+
+    let result = run_audit(temp.path())?;
+    assert_eq!(status_code(&result), 3);
+
+    Ok(())
+}
+
+#[test]
 fn test_audit_without_index() -> Result<()> {
     // Given
     let temp = tempdir()?;
@@ -278,6 +335,15 @@ fn run_audit(base: &Path) -> io::Result<Output> {
     let path = base.to_string_lossy();
     Command::new(BINARY_PATH).
         arg("audit").
+        arg(path.as_ref()).
+        output()
+}
+
+fn run_audit_update(base: &Path) -> io::Result<Output> {
+    let path = base.to_string_lossy();
+    Command::new(BINARY_PATH).
+        arg("audit").
+        arg("--update").
         arg(path.as_ref()).
         output()
 }
