@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
-use std::fmt::{Display, Formatter};
 use std::fmt;
+use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -10,9 +10,11 @@ use glob::Pattern;
 use lazy_static::lazy_static;
 
 use crate::filter::PathFilter;
-use crate::index::{HASH_INDEX_NAME, META_INDEX_NAME};
+use crate::index::{HASH_INDEX_FILENAME, META_INDEX_FILENAME};
 
-#[derive(Clone)]
+pub const GLOB_FILTER_FILENAME: &str = ".auditr-ignore";
+
+#[derive(Clone,Debug)]
 pub struct GlobRule {
     pattern: glob::Pattern,
     include: bool,
@@ -31,14 +33,14 @@ impl GlobRule {
         let file = File::open(file_name)?;
         let reader = BufReader::new(file);
 
-        let mut rules = reader.lines().
+        let rules = reader.lines().
             map(|line| GlobRule::try_from(line?.as_str())).
             collect::<Result<Vec<GlobRule>>>()?;
 
-        let mut all_rules = Vec::with_capacity(2 + rules.len());
-        all_rules.push(DEFAULT_RULES[0].clone());
-        all_rules.push(DEFAULT_RULES[1].clone());
-        all_rules.append(&mut rules);
+        let all_rules = DEFAULT_RULES.iter().
+            cloned().
+            chain(rules).
+            collect();
 
         Ok(all_rules)
     }
@@ -69,21 +71,23 @@ impl Display for GlobRule {
     }
 }
 
+#[derive(Debug)]
 pub struct GlobPathFilter<'a> {
-    rules: &'a [GlobRule],
+    rules: Vec<GlobRule>,
     root: &'a Path,
     include_by_default: bool,
 }
 
 lazy_static! {
-    static ref DEFAULT_RULES: [GlobRule; 2] = [
-        GlobRule::new(HASH_INDEX_NAME, false).unwrap(),
-        GlobRule::new(META_INDEX_NAME, false).unwrap(),
+    static ref DEFAULT_RULES: Vec<GlobRule> = vec![
+        GlobRule::new(HASH_INDEX_FILENAME, false).unwrap(),
+        GlobRule::new(META_INDEX_FILENAME, false).unwrap(),
+        GlobRule::new(GLOB_FILTER_FILENAME, false).unwrap(),
     ];
 }
 
 impl GlobPathFilter<'_> {
-    pub fn new<'a>(root: &'a Path, rules: &'a [GlobRule], include_by_default: bool) -> Result<GlobPathFilter<'a>> {
+    pub fn new(root: &Path, rules: Vec<GlobRule>, include_by_default: bool) -> Result<GlobPathFilter> {
         Ok(GlobPathFilter {
             rules,
             root,
@@ -92,7 +96,12 @@ impl GlobPathFilter<'_> {
     }
 
     pub fn default(root: &Path) -> Result<GlobPathFilter> {
-        GlobPathFilter::new(root, &DEFAULT_RULES[..], true)
+        GlobPathFilter::new(root, DEFAULT_RULES.clone(), true)
+    }
+
+    pub fn load_from_path(path: &Path, include_by_default: bool) -> Result<GlobPathFilter> {
+        let rules = GlobRule::load_rules(&path.join(GLOB_FILTER_FILENAME))?;
+        GlobPathFilter::new(path, rules, include_by_default)
     }
 }
 
@@ -121,7 +130,7 @@ mod tests {
     #[test]
     fn test_matches_no_rules_default_include() -> Result<()> {
         let patterns = vec![];
-        let filter = GlobPathFilter::new(Path::new("/some/path"), &patterns, true)?;
+        let filter = GlobPathFilter::new(Path::new("/some/path"), patterns, true)?;
 
         assert_eq!(filter.matches(Path::new("/some/path/test.txt")), true);
 
@@ -131,7 +140,7 @@ mod tests {
     #[test]
     fn test_matches_no_rules_default_exclude() -> Result<()> {
         let patterns = vec![];
-        let filter = GlobPathFilter::new(Path::new("/some/path"), &patterns, false)?;
+        let filter = GlobPathFilter::new(Path::new("/some/path"), patterns, false)?;
 
         assert_eq!(filter.matches(Path::new("/some/path/test.txt")), false);
 
@@ -141,7 +150,7 @@ mod tests {
     #[test]
     fn test_matches_different_root() -> Result<()> {
         let patterns = vec![];
-        let filter = GlobPathFilter::new(Path::new("/some/path"), &patterns, true)?;
+        let filter = GlobPathFilter::new(Path::new("/some/path"), patterns, true)?;
 
         assert_eq!(filter.matches(Path::new("/some/other/path/test.txt")), false);
 
@@ -156,7 +165,7 @@ mod tests {
             GlobRule::new("b/*.txt", true)?,
             GlobRule::new("**/b.txt", false)?,
         ];
-        let filter = GlobPathFilter::new(Path::new("/some/path"), &patterns, false)?;
+        let filter = GlobPathFilter::new(Path::new("/some/path"), patterns, false)?;
 
         assert_eq!(filter.matches(Path::new("/some/path/a.txt")), true);
         assert_eq!(filter.matches(Path::new("/some/path/a/a.txt")), true);
@@ -229,15 +238,38 @@ mod tests {
 
         let rules = GlobRule::load_rules(path.as_path())?;
 
-        assert_eq!(rules.len(), 4);
-        assert_eq!(rules[0].pattern.as_str(), HASH_INDEX_NAME);
+        assert_eq!(rules.len(), 5);
+        assert_eq!(rules[0].pattern.as_str(), HASH_INDEX_FILENAME);
         assert_eq!(rules[0].include, false);
-        assert_eq!(rules[1].pattern.as_str(), META_INDEX_NAME);
+        assert_eq!(rules[1].pattern.as_str(), META_INDEX_FILENAME);
         assert_eq!(rules[1].include, false);
-        assert_eq!(rules[2].pattern.as_str(), "some/dir/file.txt");
-        assert_eq!(rules[2].include, true);
-        assert_eq!(rules[3].pattern.as_str(), "some/dir/*");
-        assert_eq!(rules[3].include, false);
+        assert_eq!(rules[2].pattern.as_str(), GLOB_FILTER_FILENAME);
+        assert_eq!(rules[2].include, false);
+        assert_eq!(rules[3].pattern.as_str(), "some/dir/file.txt");
+        assert_eq!(rules[3].include, true);
+        assert_eq!(rules[4].pattern.as_str(), "some/dir/*");
+        assert_eq!(rules[4].include, false);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_load_from_path() -> Result<()> {
+        // Given
+        let temp = tempdir()?;
+
+        let path = temp.path().join(".auditr-ignore");
+        let rules_file = indoc!("
+            + some/dir/file.txt
+            - some/dir/*
+        ");
+        fs::write(path.as_path(), rules_file)?;
+
+        // When
+        let filter = GlobPathFilter::load_from_path(temp.path(), true)?;
+
+        // Then
+        assert_eq!(filter.rules.len(), 5);
 
         Ok(())
     }

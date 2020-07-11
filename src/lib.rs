@@ -9,7 +9,6 @@ use pbr::{ProgressBar, Units};
 use crate::diff::diff_iter;
 use crate::entry::Entry;
 use crate::filter::DefaultPathFilter;
-use crate::filter::globfilter::GlobPathFilter;
 use crate::stats::Stats;
 
 pub mod entry;
@@ -25,11 +24,11 @@ pub fn init(directory: &str) -> Result<i32> {
         bail!("An index already exists in this directory!");
     }
 
-    let filter = GlobPathFilter::default(path)?;
-    let total = analyze::total_file_size(path, &filter)?;
+    let filter = filter::load_filter(path)?;
+    let total = analyze::total_file_size(path, filter.as_ref())?;
     let pb_update = init_progress(total);
 
-    let entries = analyze::analyze_dir(path, &filter, true, true, pb_update)?;
+    let entries = analyze::analyze_dir(path, filter.as_ref(), true, true, pb_update)?;
 
     index::save(path, &entries)?;
 
@@ -43,8 +42,8 @@ pub fn update(directory: &str) -> Result<i32> {
     let entries = index::load(path, &DefaultPathFilter::new(path)).
         with_context(|| format!("No index found in directory '{}'", directory))?;
 
-    let filter = GlobPathFilter::default(path)?;
-    let actual = analyze::analyze_dir(path, &filter, true, false, |_| {})?;
+    let filter = filter::load_filter(path)?;
+    let actual = analyze::analyze_dir(path, filter.as_ref(), true, false, |_| {})?;
     let it = diff_iter(entries.iter(), actual.iter(), Entry::compare_meta);
 
     let stats: Stats = it.collect();
@@ -84,11 +83,11 @@ pub fn audit(directory: &str, update: bool) -> Result<i32> {
     let path = Path::new(directory);
     let entries = index::load(path, &DefaultPathFilter::new(path))?;
 
-    let filter = GlobPathFilter::default(path)?;
-    let total = analyze::total_file_size(path, &filter)?;
+    let filter = filter::load_filter(path)?;
+    let total = analyze::total_file_size(path, filter.as_ref())?;
     let pb_update = init_progress(total);
 
-    let actual = analyze::analyze_dir(path, &filter, true, true, pb_update)?;
+    let actual = analyze::analyze_dir(path, filter.as_ref(), true, true, pb_update)?;
 
     let it = diff_iter(entries.iter(), actual.iter(), Entry::compare_hash_and_mtime);
 

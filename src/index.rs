@@ -9,12 +9,12 @@ use anyhow::{anyhow, bail, Result};
 use crate::entry::Entry;
 use crate::filter::PathFilter;
 
-pub const HASH_INDEX_NAME: &str = ".checksums.sha256";
-pub const META_INDEX_NAME: &str = ".checksums.meta";
+pub const HASH_INDEX_FILENAME: &str = ".checksums.sha256";
+pub const META_INDEX_FILENAME: &str = ".checksums.meta";
 
 pub fn index_exists(path: &Path) -> bool {
-    let hash_index_file = path.join(HASH_INDEX_NAME);
-    let meta_index_file = path.join(META_INDEX_NAME);
+    let hash_index_file = path.join(HASH_INDEX_FILENAME);
+    let meta_index_file = path.join(META_INDEX_FILENAME);
     hash_index_file.exists() || meta_index_file.exists()
 }
 
@@ -25,13 +25,13 @@ pub fn load(path: &Path, filter: &dyn PathFilter) -> Result<Vec<Entry>> {
 }
 
 pub fn save(path: &Path, entries: &[Entry]) -> Result<()> {
-    write_hash_index(&path.join(HASH_INDEX_NAME), &entries)?;
-    write_meta_index(&path.join(META_INDEX_NAME), &entries)?;
+    write_hash_index(&path.join(HASH_INDEX_FILENAME), &entries)?;
+    write_meta_index(&path.join(META_INDEX_FILENAME), &entries)?;
     Ok(())
 }
 
 fn read_hash_index(path: &Path, filter: &dyn PathFilter) -> Result<Vec<Entry>> {
-    read_index(path, HASH_INDEX_NAME, filter, |line| {
+    read_index(path, HASH_INDEX_FILENAME, filter, |line| {
         let line: Vec<&str> = line.splitn(2, "  ").collect();
         if line.len() != 2 {
             return Err(anyhow!("invalid hash index"));
@@ -47,7 +47,7 @@ fn read_hash_index(path: &Path, filter: &dyn PathFilter) -> Result<Vec<Entry>> {
 }
 
 fn read_meta_index(path: &Path, filter: &dyn PathFilter) -> Result<Vec<Entry>> {
-    read_index(path, META_INDEX_NAME, filter, |line| {
+    read_index(path, META_INDEX_FILENAME, filter, |line| {
         let line: Vec<&str> = line.splitn(3, "  ").collect();
         if line.len() != 3 {
             bail!("meta index: invalid line format");
@@ -141,14 +141,14 @@ mod tests {
         // Given
         let temp = tempdir()?;
 
-        let hash_index_path = temp.path().join(HASH_INDEX_NAME);
+        let hash_index_path = temp.path().join(HASH_INDEX_FILENAME);
         let hash_index_contents = indoc!("
             9489d28fbd325690224dd76c0d7ae403177e15a0d63758cc0171327b5ba2aa85  test/test_non_ascii_ß€%&².txt
             048287162a3a9e8976f0aec50af82965c7c622d479bcf15f4db2d67358bd0544  test/with  spaces .txt
             ");
         fs::write(&hash_index_path, hash_index_contents)?;
 
-        let meta_index_path = temp.path().join(META_INDEX_NAME);
+        let meta_index_path = temp.path().join(META_INDEX_FILENAME);
         let meta_index_contents = indoc!("
             1578770227005  297742332  test/test_non_ascii_ß€%&².txt
             1225221568000  46738654  test/with  spaces .txt
@@ -179,7 +179,7 @@ mod tests {
         // Given
         let temp = tempdir()?;
 
-        let hash_index_path = temp.path().join(HASH_INDEX_NAME);
+        let hash_index_path = temp.path().join(HASH_INDEX_FILENAME);
         let hash_index_contents = indoc!("
             9489d28fbd325690224dd76c0d7ae403177e15a0d63758cc0171327b5ba2aa85  .checksums.meta
             048287162a3a9e8976f0aec50af82965c7c622d479bcf15f4db2d67358bd0544  .checksums.sha256
@@ -187,7 +187,7 @@ mod tests {
             ");
         fs::write(&hash_index_path, hash_index_contents)?;
 
-        let meta_index_path = temp.path().join(META_INDEX_NAME);
+        let meta_index_path = temp.path().join(META_INDEX_FILENAME);
         let meta_index_contents = indoc!("
             1578770227005  297742332  .checksums.meta
             1225221568000  46738654  .checksums.sha256
@@ -214,14 +214,14 @@ mod tests {
         // Given
         let temp = tempdir()?;
 
-        let hash_index_path = temp.path().join(HASH_INDEX_NAME);
+        let hash_index_path = temp.path().join(HASH_INDEX_FILENAME);
         let hash_index_contents = indoc!("
             9489d28fbd325690224dd76c0d7ae403177e15a0d63758cc0171327b5ba2aa85  test/a.txt
             048287162a3a9e8976f0aec50af82965c7c622d479bcf15f4db2d67358bd0544  test/b.txt
             ");
         fs::write(&hash_index_path, hash_index_contents)?;
 
-        let meta_index_path = temp.path().join(META_INDEX_NAME);
+        let meta_index_path = temp.path().join(META_INDEX_FILENAME);
         let meta_index_contents = indoc!("
             1578770227005  297742332  test/a.txt
             1225221568000  46738654  test/c.txt
@@ -242,14 +242,14 @@ mod tests {
         // Given
         let temp = tempdir()?;
 
-        let hash_index_path = temp.path().join(HASH_INDEX_NAME);
+        let hash_index_path = temp.path().join(HASH_INDEX_FILENAME);
         let hash_index_contents = indoc!("
             9489d28fbd325690224dd76c0d7ae403177e15a0d63758cc0171327b5ba2aa85  test/a.txt
             048287162a3a9e8976f0aec50af82965c7c622d479bcf15f4db2d67358bd0544  test/b.txt
             ");
         fs::write(&hash_index_path, hash_index_contents)?;
 
-        let meta_index_path = temp.path().join(META_INDEX_NAME);
+        let meta_index_path = temp.path().join(META_INDEX_FILENAME);
         let meta_index_contents = indoc!("
             1578770227005  297742332  test/a.txt
             ");
@@ -273,13 +273,13 @@ mod tests {
             9489d28fbd325690224dd76c0d7ae403177e15a0d63758cc0171327b5ba2aa85  test/a.txt
             INVALID
             ");
-        fs::write(temp.path().join(HASH_INDEX_NAME), hash_index_contents)?;
+        fs::write(temp.path().join(HASH_INDEX_FILENAME), hash_index_contents)?;
 
         let meta_index_contents = indoc!("
             1578770227005  297742332  test/a.txt
             1225221568000  46738654  test/b.txt
             ");
-        fs::write(temp.path().join(META_INDEX_NAME), meta_index_contents)?;
+        fs::write(temp.path().join(META_INDEX_FILENAME), meta_index_contents)?;
 
         // When
         let result = load(temp.path(), &DefaultPathFilter::new(temp.path()));
@@ -299,7 +299,7 @@ mod tests {
             9489d28fbd325690224dd76c0d7ae403177e15a0d63758cc0171327b5ba2aa85  test/a.txt
             048287162a3a9e8976f0aec50af82965c7c622d479bcf15f4db2d67358bd0544  test/b.txt
             ");
-        fs::write(temp.path().join(HASH_INDEX_NAME), hash_index_contents)?;
+        fs::write(temp.path().join(HASH_INDEX_FILENAME), hash_index_contents)?;
 
         let meta_index_contents = [
             indoc!("
@@ -311,7 +311,7 @@ mod tests {
         ];
 
         for c in &meta_index_contents {
-            fs::write(temp.path().join(META_INDEX_NAME), c)?;
+            fs::write(temp.path().join(META_INDEX_FILENAME), c)?;
 
             // When
             let result = load(temp.path(), &DefaultPathFilter::new(temp.path()));
@@ -351,14 +351,14 @@ mod tests {
             9489d28fbd325690224dd76c0d7ae403177e15a0d63758cc0171327b5ba2aa85  test/a.txt
             048287162a3a9e8976f0aec50af82965c7c622d479bcf15f4db2d67358bd0544  test/b.txt
             ");
-        let result = fs::read_to_string(temp.path().join(HASH_INDEX_NAME))?;
+        let result = fs::read_to_string(temp.path().join(HASH_INDEX_FILENAME))?;
         assert_eq!(result, expected_hash_index_content);
 
         let expected_meta_index_content = indoc!("
             1578770227005  297742332  test/a.txt
             1225221568000  46738654  test/b.txt
             ");
-        let result = fs::read_to_string(temp.path().join(META_INDEX_NAME))?;
+        let result = fs::read_to_string(temp.path().join(META_INDEX_FILENAME))?;
         assert_eq!(result, expected_meta_index_content);
 
         Ok(())
@@ -382,7 +382,7 @@ mod tests {
     fn test_index_exists_only_hash_index() -> Result<()> {
         // Given
         let temp = tempdir()?;
-        fs::write(temp.path().join(HASH_INDEX_NAME), "")?;
+        fs::write(temp.path().join(HASH_INDEX_FILENAME), "")?;
 
         // When
         let exists = index_exists(temp.path());
@@ -397,7 +397,7 @@ mod tests {
     fn test_index_exists_only_meta_index() -> Result<()> {
         // Given
         let temp = tempdir()?;
-        fs::write(temp.path().join(META_INDEX_NAME), "")?;
+        fs::write(temp.path().join(META_INDEX_FILENAME), "")?;
 
         // When
         let exists = index_exists(temp.path());
@@ -412,8 +412,8 @@ mod tests {
     fn test_index_exists_both_index_files() -> Result<()> {
         // Given
         let temp = tempdir()?;
-        fs::write(temp.path().join(HASH_INDEX_NAME), "")?;
-        fs::write(temp.path().join(META_INDEX_NAME), "")?;
+        fs::write(temp.path().join(HASH_INDEX_FILENAME), "")?;
+        fs::write(temp.path().join(META_INDEX_FILENAME), "")?;
 
         // When
         let exists = index_exists(temp.path());

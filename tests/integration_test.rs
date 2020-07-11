@@ -4,8 +4,10 @@ use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
 use anyhow::{bail, Result};
+use indoc::indoc;
 use tempfile::tempdir;
 
+use auditr::filter::globfilter::GLOB_FILTER_FILENAME;
 pub use common::*;
 
 mod common;
@@ -205,6 +207,61 @@ fn test_update_without_index() -> Result<()> {
 
     // Then
     assert_eq!(status_code(&result), 1);
+
+    Ok(())
+}
+
+#[test]
+fn test_filter_init_audit() -> Result<()> {
+    // Given
+    let temp = tempdir()?;
+
+    given_file_with_contents(temp.path(), GLOB_FILTER_FILENAME, indoc!("
+        + a/b*
+        - a/**
+    "))?;
+    given_dir_with_index(temp.path())?;
+
+    // When
+    let result = run_audit(temp.path())?;
+
+    // Then
+    assert_eq!(status_code(&result), 0);
+
+    let out = stdout(&result);
+    assert!(match_regex(&out, r"(?m)^Unchanged:\s+4$"));
+    assert!(match_regex(&out, r"(?m)^Total:\s+4$"));
+
+    Ok(())
+}
+
+#[test]
+fn test_filter_update() -> Result<()> {
+    // Given
+    let temp = tempdir()?;
+    let path = temp.path();
+    // let path = Path::new("/tmp/test");
+    given_file_with_contents(path, GLOB_FILTER_FILENAME, indoc!("
+        + a/b*
+        - a/**
+    "))?;
+    given_dir_with_modified_index(path, true)?;
+
+    // When
+    let result = run_update(temp.path(), true)?;
+
+    // Then
+    assert_eq!(status_code(&result), 0);
+
+    let out = stdout(&result);
+    assert!(match_regex(&out, r"(?m)^Updated:\s+1$"));
+    assert!(match_regex(&out, r"(?m)^Removed:\s+2$"));
+    assert!(match_regex(&out, r"(?m)^Unchanged:\s+1$"));
+    assert!(match_regex(&out, r"(?m)^Total:\s+2$"));
+
+    assert!(out.contains("[*] f1.txt"));
+    assert!(out.contains("[-] a/b/f3.txt"));
+    assert!(out.contains("[-] c/large.txt"));
 
     Ok(())
 }
