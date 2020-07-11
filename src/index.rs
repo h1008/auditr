@@ -9,8 +9,8 @@ use anyhow::{anyhow, bail, Result};
 use crate::entry::Entry;
 use crate::filter::PathFilter;
 
-pub const HASH_INDEX_FILENAME: &str = ".checksums.sha256";
-pub const META_INDEX_FILENAME: &str = ".checksums.meta";
+pub const HASH_INDEX_FILENAME: &str = ".auditr-sha256";
+pub const META_INDEX_FILENAME: &str = ".auditr-meta";
 
 pub fn index_exists(path: &Path) -> bool {
     let hash_index_file = path.join(HASH_INDEX_FILENAME);
@@ -181,16 +181,16 @@ mod tests {
 
         let hash_index_path = temp.path().join(HASH_INDEX_FILENAME);
         let hash_index_contents = indoc!("
-            9489d28fbd325690224dd76c0d7ae403177e15a0d63758cc0171327b5ba2aa85  .checksums.meta
-            048287162a3a9e8976f0aec50af82965c7c622d479bcf15f4db2d67358bd0544  .checksums.sha256
+            9489d28fbd325690224dd76c0d7ae403177e15a0d63758cc0171327b5ba2aa85  .auditr-meta
+            048287162a3a9e8976f0aec50af82965c7c622d479bcf15f4db2d67358bd0544  .auditr-sha256
             0675e5e9efc82e1a795e61b616093adb13b6140b0f658d1f71ec8b9b733418fb  test/a.txt
             ");
         fs::write(&hash_index_path, hash_index_contents)?;
 
         let meta_index_path = temp.path().join(META_INDEX_FILENAME);
         let meta_index_contents = indoc!("
-            1578770227005  297742332  .checksums.meta
-            1225221568000  46738654  .checksums.sha256
+            1578770227005  297742332  .auditr-meta
+            1225221568000  46738654  .auditr-sha256
             1771134938456  123492301  test/a.txt
             ");
         fs::write(&meta_index_path, meta_index_contents)?;

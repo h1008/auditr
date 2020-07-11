@@ -217,10 +217,10 @@ mod tests {
     fn test_default_filter() -> Result<()> {
         let filter = GlobPathFilter::default(Path::new("/some/path"))?;
         assert_eq!(filter.matches(Path::new("/some/path/test.txt")), true);
-        assert_eq!(filter.matches(Path::new("/some/path/.checksums.meta")), false);
-        assert_eq!(filter.matches(Path::new("/some/path/.checksums.sha256")), false);
-        assert_eq!(filter.matches(Path::new("/some/path/dir/.checksums.meta")), true);
-        assert_eq!(filter.matches(Path::new("/some/path/dir/.checksums.sha256")), true);
+        assert_eq!(filter.matches(Path::new("/some/path/.auditr-meta")), false);
+        assert_eq!(filter.matches(Path::new("/some/path/.auditr-sha256")), false);
+        assert_eq!(filter.matches(Path::new("/some/path/dir/.auditr-meta")), true);
+        assert_eq!(filter.matches(Path::new("/some/path/dir/.auditr-sha256")), true);
 
         Ok(())
     }

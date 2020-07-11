@@ -31,7 +31,7 @@ auditr update ~/Downloads
 
 # Use sha256sum
 cd ~/Downloads
-sha256sum -c .checksums.sha256
+sha256sum -c .auditr-sha256
 ```
 
 ## Output

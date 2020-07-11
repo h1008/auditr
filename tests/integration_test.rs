@@ -8,6 +8,7 @@ use indoc::indoc;
 use tempfile::tempdir;
 
 use auditr::filter::globfilter::GLOB_FILTER_FILENAME;
+use auditr::index::{HASH_INDEX_FILENAME, META_INDEX_FILENAME};
 pub use common::*;
 
 mod common;
@@ -25,8 +26,8 @@ fn test_init() -> Result<()> {
 
     // Then
     assert_eq!(status_code(&result), 0);
-    assert!(temp.path().join(".checksums.sha256").exists());
-    assert!(temp.path().join(".checksums.meta").exists());
+    assert!(temp.path().join(HASH_INDEX_FILENAME).exists());
+    assert!(temp.path().join(META_INDEX_FILENAME).exists());
 
     Ok(())
 }
