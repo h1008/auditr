@@ -275,8 +275,8 @@ fn test_filter_init_audit() -> Result<()> {
     let temp = tempdir()?;
 
     given_file_with_contents(temp.path(), GLOB_FILTER_FILENAME, indoc!("
-        + a/b*
-        - a/**
+        !a/b*
+        a/**
     "))?;
     given_dir_with_index(temp.path())?;
 
@@ -300,8 +300,8 @@ fn test_filter_update() -> Result<()> {
     let path = temp.path();
     // let path = Path::new("/tmp/test");
     given_file_with_contents(path, GLOB_FILTER_FILENAME, indoc!("
-        + a/b*
-        - a/**
+        !a/b*
+        a/**
     "))?;
     given_dir_with_modified_index(path, true)?;
 

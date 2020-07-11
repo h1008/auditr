@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use glob::Pattern;
 use lazy_static::lazy_static;
 
@@ -33,7 +33,9 @@ impl GlobRule {
         let file = File::open(file_name)?;
         let reader = BufReader::new(file);
 
+        let line_contains_filter = |l: &String| !l.starts_with('#') && !l.trim().is_empty();
         let rules = reader.lines().
+            filter(|line| line.as_ref().map(line_contains_filter).unwrap_or(true)).
             map(|line| GlobRule::try_from(line?.as_str())).
             collect::<Result<Vec<GlobRule>>>()?;
 
@@ -50,14 +52,11 @@ impl TryFrom<&str> for GlobRule {
     type Error = anyhow::Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let include = match value.chars().next() {
-            Some('+') => true,
-            Some('-') => false,
-            _ => bail!("invalid glob rule pattern: {}", value)
-        };
-
-        let prefix: &[_] = &['+', '-', ' ', '\t'];
-        GlobRule::new(value.trim_start_matches(prefix), include)
+        if let Some(path) = value.strip_prefix('!') {
+            GlobRule::new(path, true)
+        } else {
+            GlobRule::new(value, false)
+        }
     }
 }
 
@@ -196,10 +195,8 @@ mod tests {
     }
 
     try_from_tests! {
-        test_try_from_include: ("+ **/test.txt", true, "**/test.txt"),
-        test_try_from_include_without_space: ("+**/test.txt", true, "**/test.txt"),
-        test_try_from_exclude: ("- **/test.txt", false, "**/test.txt"),
-        test_try_from_exclude_without_space: ("-**/test.txt", false, "**/test.txt"),
+        test_try_from_include: ("!**/test.txt", true, "**/test.txt"),
+        test_try_from_exclude: ("**/test.txt", false, "**/test.txt"),
     }
 
     #[test]
@@ -231,8 +228,11 @@ mod tests {
 
         let path = temp.path().join(".auditr-ignore");
         let rules_file = indoc!("
-            + some/dir/file.txt
-            - some/dir/*
+            # some comment
+            !some/dir/file.txt
+
+            # another comment
+            some/dir/*
         ");
         fs::write(path.as_path(), rules_file)?;
 
@@ -260,8 +260,8 @@ mod tests {
 
         let path = temp.path().join(".auditr-ignore");
         let rules_file = indoc!("
-            + some/dir/file.txt
-            - some/dir/*
+            !some/dir/file.txt
+            some/dir/*
         ");
         fs::write(path.as_path(), rules_file)?;
 

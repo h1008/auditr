@@ -78,8 +78,8 @@ mod tests {
 
         let path = temp.path().join(GLOB_FILTER_FILENAME);
         let rules_file = indoc!("
-            + some/dir/file.txt
-            - some/dir/**
+            !some/dir/file.txt
+            some/dir/**
         ");
         fs::write(path.as_path(), rules_file)?;
 
