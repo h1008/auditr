@@ -90,3 +90,11 @@ some/dir/*
 ## Limitations
 
 - Tested on Linux only
+
+## Misc
+
+Add musl target to avoid dependency to specific GLIBC versions.
+
+```
+rustup target add x86_64-unknown-linux-musl
+```
