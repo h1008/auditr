@@ -89,7 +89,7 @@ some/dir/*
 
 ## Limitations
 
-- Tested on Linux only
+- Tested on MacOS and Linux only
 
 ## Misc
 
@@ -98,3 +98,18 @@ Add musl target to avoid dependency to specific GLIBC versions.
 ```
 rustup target add x86_64-unknown-linux-musl
 ```
+
+## Development
+
+Using [mise-en-place](https://mise.jdx.dev/):
+
+```sh
+mise install
+```
+
+Install linker `x86_64-linux-musl-gcc`:
+
+- https://github.com/messense/homebrew-macos-cross-toolchains or
+- https://github.com/FiloSottile/homebrew-musl-cross
+
+See also [here](https://betterprogramming.pub/cross-compiling-rust-from-mac-to-linux-7fad5a454ab1).
