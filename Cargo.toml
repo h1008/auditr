@@ -1,12 +1,12 @@
 [package]
 name = "auditr"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["h1008 <9917357+h1008@users.noreply.github.com>"]
 license = "MIT"
 edition = "2018"
 
 [dependencies]
-clap = { git = "https://github.com/clap-rs/clap/" }
+clap = { git = "https://github.com/clap-rs/clap/", features = ["derive"] }
 sha2 = "0.8.1"
 walkdir = "2"
 anyhow = "1.0"
