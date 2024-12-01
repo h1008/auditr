@@ -1,4 +1,4 @@
-use std::io;
+use std::io::{self, IsTerminal};
 use std::io::{BufRead, stdout};
 use std::path::Path;
 
@@ -174,9 +174,10 @@ fn print_stat(name: &str, count: usize) {
 }
 
 fn init_progress(total: u64) -> impl FnMut(u64) -> u64 {
-    let is_a_tty = atty::is(atty::Stream::Stdout);
+    let out = stdout();
+    let is_a_tty = out.is_terminal();
 
-    let mut pb = ProgressBar::on(stdout(), total);
+    let mut pb = ProgressBar::on(out, total);
     pb.set_units(Units::Bytes);
 
     move |c| {
