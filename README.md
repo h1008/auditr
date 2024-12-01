@@ -99,7 +99,7 @@ Add musl target to avoid dependency to specific GLIBC versions.
 rustup target add x86_64-unknown-linux-musl
 ```
 
-## Development
+## Development on MacOS
 
 Using [mise-en-place](https://mise.jdx.dev/):
 
@@ -107,9 +107,18 @@ Using [mise-en-place](https://mise.jdx.dev/):
 mise install
 ```
 
-Install linker `x86_64-linux-musl-gcc`:
+Install toolchain for `x86_64-linux-musl-gcc`:
 
 - https://github.com/messense/homebrew-macos-cross-toolchains or
 - https://github.com/FiloSottile/homebrew-musl-cross
 
 See also [here](https://betterprogramming.pub/cross-compiling-rust-from-mac-to-linux-7fad5a454ab1).
+
+Run tests and build release:
+
+```sh
+mise r test
+
+mise r build:linux --release
+mise r build:darwin --release
+```

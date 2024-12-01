@@ -1,2 +1,19 @@
 [tools]
 rust = "latest"
+
+[tasks."build:linux"]
+description = "Build the executable for Linux"
+run = "cargo build --target x86_64-unknown-linux-musl"
+
+[tasks."build:darwin"]
+description = "Build the executable for MacOS Silicon"
+run = "cargo build --target aarch64-apple-darwin"
+
+[tasks.test]
+run = "cargo test"
+
+[tasks.lint]
+run = "cargo clippy"
+
+[tasks.clean]
+run = "rm -r target/"
