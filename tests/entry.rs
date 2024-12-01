@@ -21,6 +21,7 @@ fn test_update_meta() -> Result<()> {
 
     let mut e = Entry {
         path: PathBuf::from("test.txt"),
+        norm_path: String::from("test.txt"),
         hash: String::from(""),
         modified: 0,
         len: 0,
@@ -43,6 +44,7 @@ fn test_update_meta_non_existing_file() -> Result<()> {
 
     let mut e = Entry {
         path: PathBuf::from("does_not_exist.txt"),
+        norm_path: String::from("does_not_exist.txt"),
         hash: String::from(""),
         modified: 0,
         len: 0,
@@ -66,6 +68,7 @@ fn test_update_hash() -> Result<()> {
 
     let mut e = Entry {
         path: PathBuf::from("test.txt"),
+        norm_path: String::from("test.txt"),
         hash: String::from(""),
         modified: 0,
         len: 0,
@@ -94,6 +97,7 @@ fn test_update_hash_large_file() -> Result<()> {
 
     let mut e = Entry {
         path: PathBuf::from("test.bin"),
+        norm_path: String::from("test.bin"),
         hash: String::from(""),
         modified: 0,
         len: 0,
@@ -117,6 +121,7 @@ fn test_update_hash_no_update() -> Result<()> {
 
     let mut e = Entry {
         path: PathBuf::from("test.txt"),
+        norm_path: String::from("test.txt"),
         hash: String::from("existing_hash"),
         modified: 0,
         len: 0,
@@ -142,6 +147,7 @@ fn test_update_hash_force() -> Result<()> {
 
     let mut e = Entry {
         path: PathBuf::from("test.txt"),
+        norm_path: String::from("test.txt"),
         hash: String::from("existing_hash"),
         modified: 0,
         len: 0,
@@ -165,6 +171,7 @@ fn test_update_hash_non_existing_file() -> Result<()> {
 
     let mut e = Entry {
         path: PathBuf::from("does_not_exist.txt"),
+        norm_path: String::from("does_not_exist.txt"),
         hash: String::from(""),
         modified: 0,
         len: 0,

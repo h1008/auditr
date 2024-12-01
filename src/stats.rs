@@ -115,6 +115,7 @@ mod tests {
         let hash = format!("{} hash", name);
         return Entry {
             path: PathBuf::from(name),
+            norm_path: name.to_owned(),
             hash,
             len: 123,
             modified: 123,
@@ -359,6 +360,7 @@ mod tests {
         let updated_entry_old = given_entry("updated.txt");
         let updated_entry_new = Entry {
             path: PathBuf::from("updated.txt"),
+            norm_path: String::from("updated.txt"),
             hash: String::from("updated.txt new hash"),
             len: 456,
             modified: 234,
@@ -367,6 +369,7 @@ mod tests {
         let updated_entry_with_bitrot_old = given_entry("bitrot.txt");
         let updated_entry_with_bitrot_new = Entry {
             path: PathBuf::from("bitrot.txt"),
+            norm_path: String::from("bitrot.txt"),
             hash: String::from("bitrot new hash"),
             len: 123,
             modified: 123,
@@ -420,36 +423,42 @@ mod tests {
         // When
         let moved_entry_1_from = Entry {
             path: PathBuf::from("moved_1_from.txt"),
+            norm_path: String::from("moved_1_from.txt"),
             hash: String::from("moved file 1 hash"),
             len: 123,
             modified: 123,
         };
         let moved_entry_1a_to = Entry {
             path: PathBuf::from("moved_1a_to.txt"),
+            norm_path: String::from("moved_1a_to.txt"),
             hash: String::from("moved file 1 hash"),
             len: 123,
             modified: 123,
         };
         let moved_entry_1b_to = Entry {
             path: PathBuf::from("moved_1b_to.txt"),
+            norm_path: String::from("moved_1b_to.txt"),
             hash: String::from("moved file 1 hash"),
             len: 123,
             modified: 123,
         };
         let moved_entry_2a_from = Entry {
             path: PathBuf::from("moved_2a_from.txt"),
+            norm_path: String::from("moved_2a_from.txt"),
             hash: String::from("moved file 2 hash"),
             len: 123,
             modified: 123,
         };
         let moved_entry_2b_from = Entry {
             path: PathBuf::from("moved_2b_from.txt"),
+            norm_path: String::from("moved_2b_from.txt"),
             hash: String::from("moved file 2 hash"),
             len: 123,
             modified: 123,
         };
         let moved_entry_2_to = Entry {
             path: PathBuf::from("moved_2_to.txt"),
+            norm_path: "mmoved_2_to.txt".to_owned(),
             hash: String::from("moved file 2 hash"),
             len: 123,
             modified: 123,

@@ -9,25 +9,26 @@ use std::time::UNIX_EPOCH;
 use anyhow::Result;
 use sha2::{Digest, Sha256};
 use sha2::digest::generic_array::functional::FunctionalSequence;
+use unicode_normalization::UnicodeNormalization;
 
 #[derive(Debug, Clone)]
 pub struct Entry {
     pub path: PathBuf,
+    pub norm_path: String,
     pub hash: String,
     pub len: u64,
-    pub modified: u128,
+    pub modified: u64,
 }
 
 impl Display for Entry {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let path = self.path.to_str().unwrap_or("-");
-        write!(f, "{}", path)
+        write!(f, "{}", self.norm_path)
     }
 }
 
 impl Ord for Entry {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.path.cmp(&other.path)
+        self.norm_path.cmp(&other.norm_path)
     }
 }
 
@@ -39,7 +40,7 @@ impl PartialOrd for Entry {
 
 impl PartialEq for Entry {
     fn eq(&self, other: &Self) -> bool {
-        self.path == other.path
+        self.norm_path == other.norm_path
     }
 }
 
@@ -49,6 +50,7 @@ impl Entry {
     pub fn from_path(path: &Path) -> Entry {
         Entry {
             path: path.to_path_buf(),
+            norm_path: path.to_str().map(|s| s.nfc().to_string()).unwrap_or("-".to_owned()),
             hash: String::new(),
             len: 0,
             modified: 0,
@@ -72,7 +74,7 @@ impl Entry {
         let meta = fs::metadata(path)?;
         let time = meta.modified()?.duration_since(UNIX_EPOCH)?;
         self.len = meta.len();
-        self.modified = time.as_millis();
+        self.modified = time.as_secs();
         Ok(())
     }
 

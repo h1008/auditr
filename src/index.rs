@@ -39,6 +39,7 @@ fn read_hash_index(path: &Path, filter: &dyn PathFilter) -> Result<Vec<Entry>> {
 
         Ok(Entry {
             path: PathBuf::from(line[1]),
+            norm_path: line[1].to_string(),
             hash: String::from(line[0]),
             len: 0,
             modified: 0,
@@ -55,10 +56,11 @@ fn read_meta_index(path: &Path, filter: &dyn PathFilter) -> Result<Vec<Entry>> {
 
         Ok(Entry {
             path: PathBuf::from(line[2]),
+            norm_path: line[2].to_string(),
             hash: String::new(),
             len: line[1].parse::<u64>().
                 map_err(|err| anyhow!("invalid meta format: invalid length: {}", err))?,
-            modified: line[0].parse::<u128>().
+            modified: line[0].parse::<u64>().
                 map_err(|err| anyhow!("invalid meta format: invalid modified timestamp: {}", err))?,
         })
     })
@@ -99,6 +101,7 @@ fn join_indices(hash_index: Vec<Entry>, meta_index: Vec<Entry>) -> Result<Vec<En
             }
             Ok(Entry {
                 path: i1.path.clone(),
+                norm_path: i1.norm_path.clone(),
                 hash: i1.hash.clone(),
                 len: i2.len,
                 modified: i2.modified,
@@ -331,12 +334,14 @@ mod tests {
         let entries = [
             Entry {
                 path: PathBuf::from("test/a.txt"),
+                norm_path: String::from("test/a.txt"),
                 hash: String::from("9489d28fbd325690224dd76c0d7ae403177e15a0d63758cc0171327b5ba2aa85"),
                 len: 297742332,
                 modified: 1578770227005,
             },
             Entry {
                 path: PathBuf::from("test/b.txt"),
+                norm_path: String::from("test/b.txt"),
                 hash: String::from("048287162a3a9e8976f0aec50af82965c7c622d479bcf15f4db2d67358bd0544"),
                 len: 46738654,
                 modified: 1225221568000,

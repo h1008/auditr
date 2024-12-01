@@ -1,6 +1,6 @@
 [package]
 name = "auditr"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["h1008 <9917357+h1008@users.noreply.github.com>"]
 license = "MIT"
 edition = "2018"
@@ -15,6 +15,7 @@ colored = "1.9"
 atty = "0.2"
 glob = "0.3"
 lazy_static = "1.4.0"
+unicode-normalization = "0.1.20"
 
 [dev-dependencies]
 tempfile = "3"

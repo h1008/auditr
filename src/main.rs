@@ -9,7 +9,7 @@ use auditr::*;
 /// Auditr collects hashes and file system metadata of all files in a directory tree.
 /// The collected data can be used at later point in time to detect changes (like files added, removed, or updated).
 #[derive(Parser)]
-#[clap(version = "0.1.2", author = "h1008")]
+#[clap(version = "0.2.0", author = "h1008")]
 struct Opts {
     #[command(subcommand)]
     subcmd: SubCommand,
